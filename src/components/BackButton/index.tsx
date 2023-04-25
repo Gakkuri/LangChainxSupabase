@@ -1,7 +1,11 @@
 import { useRouter } from 'next/router'
 import React from 'react'
 
-const BackButton = (props) => {
+type Props = {
+    className: string
+}
+
+const BackButton = (props: Props) => {
     const router = useRouter();
     return (
         <button

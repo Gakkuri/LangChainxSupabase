@@ -3,6 +3,13 @@ import React, { useEffect, useState } from 'react'
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import BackButton from '@/components/BackButton';
 
+type DocumentType = {
+    id: "",
+    content: "",
+    metadata: "",
+    embedding: ""
+}
+
 const Document = () => {
     const router = useRouter();
     const [documentData, setDocumentData] = useState({
