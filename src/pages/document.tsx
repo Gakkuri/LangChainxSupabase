@@ -30,7 +30,7 @@ const Document = () => {
                     setDocumentData(data[0]);
                 })
         }
-    }, [])
+    }, [router.query?.id])
 
 
     return (

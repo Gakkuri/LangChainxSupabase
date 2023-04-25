@@ -2,7 +2,7 @@ import { useRouter } from 'next/router'
 import React from 'react'
 
 type Props = {
-    className: string
+    className: string | null
 }
 
 const BackButton = (props: Props) => {
