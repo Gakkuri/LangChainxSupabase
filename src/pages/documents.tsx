@@ -20,7 +20,7 @@ const Documents = () => {
 			})
 	}, [])
 
-	const goToDocument = (id) => router.push({ pathname: "/document", query: { id } })
+	const goToDocument = (id) => router.push({ pathname: `/document/${id}` })
 
 	return (
 		<div className="m-8">

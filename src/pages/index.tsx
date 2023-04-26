@@ -5,6 +5,14 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import styles from "@/styles/Home.module.css";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { FormEvent, useCallback, useState } from "react";
+import Link from "next/link";
+//Langchain libs
+// import { Chroma } from "langchain/vectorstores/chroma";
+import { PineconeStore } from "langchain/vectorstores/pinecone";
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { PineconeClient } from "@pinecone-database/pinecone";
+import { OpenAI } from "langchain/llms/openai";
+import { ConversationalRetrievalQAChain } from "langchain/chains";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,6 +23,7 @@ export default function Home() {
   const [stream, setStream] = useState(false);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
+  const [sourceDocuments, setSourceDocuments] = useState([]);
   const [inflight, setInflight] = useState(false);
 
   const onSubmit = useCallback(
@@ -45,12 +54,42 @@ export default function Home() {
           );
           setInput("");
         } else {
-          // If not streaming, we can use the supabase client
-          const { data } = await supabase.functions.invoke("vector", {
-            body: { query: input },
+          const client = new PineconeClient();
+          await client.init({
+            apiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY,
+            environment: process.env.NEXT_PUBLIC_PINECONE_ENVIRONMENT,
           });
-          setOutput(data.text);
-          setInput("");
+          const pineconeIndex = client.Index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME);
+
+          const vectorStore = await PineconeStore.fromExistingIndex(
+            new OpenAIEmbeddings({
+              openAIApiKey: process.env.NEXT_PUBLIC_API_KEY
+            }),
+            { pineconeIndex }
+          );
+
+          /* Initialize the LLM to use to answer the question */
+          const model = new OpenAI({ openAIApiKey: process.env.NEXT_PUBLIC_API_KEY });
+
+          /* Create the chain */
+          const chain = ConversationalRetrievalQAChain.fromLLM(
+            model, vectorStore.asRetriever(), { returnSourceDocuments: true }
+          );
+          /* Ask it a question */
+          const question = input;
+          const res = await chain.call({ question, chat_history: [] });
+
+          console.log(res);
+
+          setOutput(res.text)
+
+          // If not streaming, we can use the supabase client
+          // const { data } = await supabase.functions.invoke("vector", {
+          //   body: { query: input },
+          // });
+          // setOutput(data.text);
+          // setSourceDocuments(data.sourceDocuments)
+          // setInput("");
         }
       } catch (error) {
         console.error(error);
@@ -61,6 +100,14 @@ export default function Home() {
     [input, stream, inflight, supabase]
   );
 
+  const testPdf = async () => {
+    const { data } = await supabase.functions.invoke("pdfloader", {
+      body: { query: input },
+    });
+
+    console.log(data)
+  }
+
   return (
     <>
       <Head>
@@ -70,7 +117,33 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className="h-screen flex flex-col items-center justify-center">
-        <div style={{ width: 200 }}>Response: {output}</div>
+        <div style={{ width: 200 }}>
+          <button
+            className="inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
+            onClick={() => router.push('/documents')}>
+            Documents List
+          </button>
+          <span>Response: {output}</span>
+          <br />
+          <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
+          {
+            sourceDocuments.map((sourceDoc) => {
+              if (sourceDoc?.metadata?.id) return (
+                <>
+                  <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 text-xs font-medium">
+                    <Link href={`/document/${sourceDoc?.metadata?.id}`}>{
+                      sourceDoc?.pageContent.length > 20 ?
+                        `${sourceDoc?.pageContent.substring(0, 20)}...`
+                        : sourceDoc?.pageContent
+                    }</Link>
+                  </div>
+                </>
+
+              )
+            })
+          }
+          <span></span>
+        </div>
         <form
           onSubmit={onSubmit}
           style={{ display: "flex", flexDirection: "column" }}
@@ -103,9 +176,10 @@ export default function Home() {
         </form>
         {/* <button onClick={() => router.push('/embed')}>Embed</button> */}
         <button
-          className="inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
-          onClick={() => router.push('/documents')}>
-          Documents List
+          className="inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
+          onClick={testPdf}
+        >
+          TestPDF
         </button>
       </main >
     </>
