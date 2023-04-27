@@ -35,6 +35,11 @@ td {
   cursor: pointer;
 }
 
+
+.quill .ql-editor {
+  min-height: 18em;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

@@ -25,11 +25,8 @@ serve(async (req) => {
         const { query } = await req.json();
         // This is needed if you're planning to invoke your function from a browser.
         const input = query.replace(/\n/g, ' ')
-
         const client = createClient(url, privateKey);
-
         const embeddings = new OpenAIEmbeddings();
-
         const retriever = new SupabaseHybridSearch(embeddings, {
             client,
             similarityK: 2,
@@ -41,23 +38,14 @@ serve(async (req) => {
 
         /* Initialize the LLM to use to answer the question */
         const model = new OpenAI({});
+
         /* Create the chain */
         const chain = ConversationalRetrievalQAChain.fromLLM(
-            model,
-            retriever
+            model, retriever, { returnSourceDocuments: true }
         );
         /* Ask it a question */
         const question = input;
         const res = await chain.call({ question, chat_history: [] });
-        console.log(res);
-        // /* Ask it a follow up question */
-        // const chatHistory = question + res.text;
-        // const followUpRes = await chain.call({
-        //     question: "Was that nice?",
-        //     chat_history: chatHistory,
-        // });
-        // console.log(followUpRes);
-
 
         return new Response(JSON.stringify(res), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },

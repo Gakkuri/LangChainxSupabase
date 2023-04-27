@@ -2,13 +2,16 @@ import React, { useState, useRef } from 'react'
 import { Configuration, OpenAIApi } from 'openai'
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import BackButton from '@/components/BackButton';
+import { ChromaClient } from 'chromadb';
 
 const Embed = () => {
+    // const chroma = new ChromaClient("http://34.205.155.126:8000");
     const supabase = useSupabaseClient();
     const configuration = new Configuration({ apiKey: process.env.NEXT_PUBLIC_API_KEY })
     const openAi = new OpenAIApi(configuration)
 
     const input = useRef("");
+    const fileRef = useRef();
     const [output, setOutput] = useState("");
 
     const onEmbed = async () => {
@@ -37,8 +40,15 @@ const Embed = () => {
         } catch (err) {
             console.error(err);
         }
-
     }
+
+    const pdfUploader = async () => {
+        const collection = await chroma.getCollection("my_collection")
+        console.log(await collection.count());
+    }
+
+
+
 
     return (
         <div className='m-8'>
@@ -53,6 +63,20 @@ const Embed = () => {
                 </button>
                 <br /><br /><br />
                 {output}
+
+                <input ref={fileRef} type="file" ></input>
+                <button
+                    className='mt-4 inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]'
+                    onClick={pdfUploader}>
+                    Test Chroma
+                </button>
+
+                {/* <button
+                    className='mt-4 inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]'
+                    onClick={pdfLoader}
+                >
+                    Test PDF
+                </button> */}
             </div>
         </div>
 
