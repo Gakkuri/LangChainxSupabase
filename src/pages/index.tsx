@@ -13,8 +13,18 @@ import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { PineconeClient } from "@pinecone-database/pinecone";
 import { OpenAI } from "langchain/llms/openai";
 import { ConversationalRetrievalQAChain } from "langchain/chains";
+import Loader from "@/components/Loader";
 
 // const inter = Inter({ subsets: ["latin"] });
+
+type Documents = {
+  id: number
+  content: string
+  pageContent: string
+  metadata?: { id: number }
+  embedding: [number]
+  html_string: string
+}
 
 export default function Home() {
   const router = useRouter();
@@ -23,7 +33,7 @@ export default function Home() {
   const [stream, setStream] = useState(false);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
-  const [sourceDocuments, setSourceDocuments] = useState([]);
+  const [sourceDocuments, setSourceDocuments] = useState<Array<Documents>>([]);
   const [inflight, setInflight] = useState(false);
 
   const onSubmit = useCallback(
@@ -104,8 +114,6 @@ export default function Home() {
     const { data } = await supabase.functions.invoke("pdfloader", {
       body: { query: input },
     });
-
-    console.log(data)
   }
 
   return (
@@ -116,8 +124,8 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main>
-        <div className="flex justify-end m-4">
+      <main className="h-screen flex flex-col">
+        <div className="flex justify-end p-4">
           <button
             className="inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
             onClick={() => router.push('/documents')}>
@@ -125,7 +133,7 @@ export default function Home() {
           </button>
         </div>
 
-        <div className="h-screen flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center">
           <div style={{ width: 300 }}>
 
             <span>Response: {output}</span>
@@ -134,15 +142,15 @@ export default function Home() {
             {
               sourceDocuments.map((sourceDoc) => {
                 if (sourceDoc?.metadata?.id) return (
-                  <>
-                    <div key={sourceDoc.id} className="inline-block rounded px-4 py-1 my-1 bg-slate-600 text-xs font-medium">
-                      <Link href={`/document/${sourceDoc?.metadata?.id}`}>{
+                  <div key={sourceDoc?.metadata?.id}>
+                    <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">
+                      <Link href={{ pathname: `/documents/`, query: { id: sourceDoc?.metadata?.id } }}>{
                         sourceDoc?.pageContent.length > 20 ?
                           `${sourceDoc?.pageContent.substring(0, 20)}...`
                           : sourceDoc?.pageContent
                       }</Link>
                     </div>
-                  </>
+                  </div>
 
                 )
               })
@@ -162,30 +170,13 @@ export default function Home() {
                 onChange={(e) => setInput(e.target.value)}
               />
               <button
-                className="inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
+                className={`${inflight && "cursor-not-allowed"} inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]`}
                 type="submit"
               >
-                Submit
+                {inflight ? <div className="flex items-center"><Loader className="mr-2" /> Processing...</div> : "Submit"}
               </button>
             </div>
-            {/* <div style={{ display: "flex", alignItems: "center" }}>
-              <input
-                type="checkbox"
-                id="stream"
-                style={{ marginRight: 5 }}
-                checked={stream}
-                onChange={() => setStream((s) => !s)}
-              />
-              <label htmlFor="stream">Stream</label>
-            </div> */}
           </form>
-          {/* <button onClick={() => router.push('/embed')}>Embed</button> */}
-          {/* <button
-            className="inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
-            onClick={testPdf}
-          >
-            TestPDF
-          </button> */}
         </div>
       </main >
     </>
