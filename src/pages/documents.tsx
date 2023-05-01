@@ -14,14 +14,12 @@ import 'quill-mention/dist/quill.mention.css';
 const QuillMention = dynamic(import('quill-mention'), { ssr: false });
 const ReactQuill = dynamic(import('react-quill'), { ssr: false });
 
-// ReactQuill.Quill.register('modules/mentions', QuillMention)
-
 type Documents = {
 	id: number
 	content: string
 	metadata?: { id: number }
 	embedding: [number]
-	html_string: string
+	htmlString: string
 }
 
 const atValues = [
@@ -37,7 +35,7 @@ const hashValues = [
 const Documents = () => {
 	const router = useRouter();
 	const supabase = useSupabaseClient();
-	const configuration = new Configuration({ apiKey: process.env.NEXT_PUBLIC_API_KEY })
+	const configuration = new Configuration({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY })
 	const openAi = new OpenAIApi(configuration)
 
 	const [loading, setLoading] = useState(false);
@@ -51,7 +49,7 @@ const Documents = () => {
 			.from('documents')
 			.select()
 			.then(({ data, error }) => {
-				setDocuments(data);
+				setDocuments(data?.map((d) => ({ ...d, htmlString: d.html_string })));
 			})
 	}, [])
 
@@ -60,7 +58,7 @@ const Documents = () => {
 			const foundDoc = documents.find((d) => d.id === parseInt(router.query.id));
 			if (foundDoc) {
 				setSelectedDocument(foundDoc);
-				setValue(foundDoc.html_string);
+				setValue(foundDoc.htmlString);
 			}
 		}
 	}, [router.query, documents])
@@ -84,7 +82,7 @@ const Documents = () => {
 		const document = documents.find(d => id === d.id);
 		if (document) {
 			setSelectedDocument(document);
-			setValue(document.html_string);
+			setValue(document.htmlString);
 		}
 	}
 

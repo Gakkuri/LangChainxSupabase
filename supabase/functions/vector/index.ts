@@ -4,18 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { SupabaseHybridSearch } from "langchain/retrievers/supabase";
 import { OpenAI } from "langchain/llms/openai";
 import { ConversationalRetrievalQAChain } from "langchain/chains";
-import { HNSWLib } from "langchain/vectorstores/hnswlib";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // First, follow set-up instructions at
 // https://js.langchain.com/docs/modules/indexes/vector_stores/integrations/supabase
-
-const privateKey = Deno.env.get("SUPABASE_PRIVATE_KEY");
-if (!privateKey) throw new Error(`Expected env var SUPABASE_PRIVATE_KEY`);
-
-const url = Deno.env.get("SUPABASE_URL");
-if (!url) throw new Error(`Expected env var SUPABASE_URL`);
 
 serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -25,8 +17,12 @@ serve(async (req) => {
         const { query } = await req.json();
         // This is needed if you're planning to invoke your function from a browser.
         const input = query.replace(/\n/g, ' ')
-        const client = createClient(url, privateKey);
+        const client = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
         const embeddings = new OpenAIEmbeddings();
+
         const retriever = new SupabaseHybridSearch(embeddings, {
             client,
             similarityK: 2,

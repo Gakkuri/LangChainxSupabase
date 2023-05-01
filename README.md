@@ -15,7 +15,7 @@ yarn
 3. Create frontend env file
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
 4. Create supabase functions env file
