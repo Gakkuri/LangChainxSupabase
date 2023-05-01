@@ -18,6 +18,8 @@ yarn
 cp .env.example .env.local
 ```
 
+And change the NEXT_PUBLIC_OPENAI_API_KEY to you OPENAI API KEY
+
 4. Create supabase functions env file
 
 ```bash
