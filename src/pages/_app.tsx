@@ -9,6 +9,8 @@ function App({ Component, pageProps }: AppProps) {
 }
 
 export default function AppWrapper(props: AppProps) {
+  return <App {...props} />
+
   const [supabaseClient] = useState(() => createBrowserSupabaseClient());
 
   return (

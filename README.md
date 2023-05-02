@@ -18,31 +18,33 @@ yarn
 cp .env.example .env.local
 ```
 
-4. Create supabase functions env file
+4. Update OPENAI_API_KEY in the .env.local to your key.
+
+5. Create supabase functions env file
 
 ```bash
 echo "OPENAI_API_KEY=sk-xxx" > supabase/.env
 ```
 
-5. Start the supabase project
+6. Start the supabase project
 
 ```bash
 npx supabase start
 ```
 
-6. Start the supabase functions locally
+7. Start the supabase functions locally
 
 ```bash
 yarn supabase:dev
 ```
 
-7. Start the frontend locally
+8. Start the frontend locally
 
 ```bash
 yarn dev
 ```
 
-8. Open [http://localhost:3100](http://localhost:3100) with your browser to see the result.
+9. Open [http://localhost:3100](http://localhost:3100) with your browser to see the result.
 
 ## Deploy
 
