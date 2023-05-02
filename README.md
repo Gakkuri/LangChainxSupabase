@@ -18,7 +18,7 @@ yarn
 cp .env.example .env.local
 ```
 
-4. Update OPENAI_API_KEY in the .env.local to your key.
+4. Update OPENAI_API_KEY in the .env.local to your OPENAI API key.
 
 5. Create supabase functions env file
 
