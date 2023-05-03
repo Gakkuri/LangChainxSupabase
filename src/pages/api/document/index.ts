@@ -34,11 +34,7 @@ export default async function handler(req, res) {
           input,
         })
 
-        const id = Math.floor(Date.now() / 1000);
-
         const insert = {
-          id,
-          metadata: { id },
           content: convert(input),
           embedding: embeddingResponse.data.data[0].embedding,
           html_string: value
@@ -49,8 +45,15 @@ export default async function handler(req, res) {
           .insert(insert)
           .select();
 
-        if (data) res.status(200).json(data)
-        if (error) res.status(error?.code || 500).json(error.message)
+        const new_document_id = data[0].id;
+        const { data: dataUpdate, error: errorUpdate } = await supabase
+          .from('documents')
+          .update({ metadata: { id: new_document_id } })
+          .eq('id', new_document_id)
+          .select();
+
+        if (dataUpdate) res.status(200).json(dataUpdate)
+        if (error || errorUpdate) res.status(error?.code || 500).json(error?.message || errorUpdate?.message)
       } catch (error) {
         res.status(error?.code || 500).json(error.message)
       }

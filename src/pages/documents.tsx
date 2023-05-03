@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import dynamic from "next/dynamic";
 import { useRouter } from 'next/router';
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 
-import BackButton from '@/components/BackButton';
+import Header from '@/components/Header';
 import Loader from '@/components/Loader';
 
 import 'react-quill/dist/quill.snow.css';
@@ -38,6 +38,7 @@ const Documents = () => {
   const [selectedDocument, setSelectedDocument] = useState<Documents>();
   const [value, setValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [selectedPDF, setSelectedPDF] = useState();
 
   useEffect(() => {
     axios.get("/api/document").then(({ data }) => {
@@ -67,6 +68,9 @@ const Documents = () => {
 
   const goToDocument = (id: number | null) => {
     if (!id) {
+      router.replace({
+        query: {}
+      })
       setSelectedDocument(undefined);
       setValue("");
       return;
@@ -76,9 +80,6 @@ const Documents = () => {
       router.replace({
         query: { id }
       })
-      console.log(document)
-      setSelectedDocument(document);
-      setValue(document.html_string);
     }
   }
 
@@ -166,16 +167,25 @@ const Documents = () => {
     ),
   }
 
+  const onUploadPDF = async () => {
+    let formData = new FormData();
+    formData.append("file", selectedPDF);
+
+    const config: AxiosRequestConfig = {
+      headers: { 'content-type': `multipart/form-data` },
+      onUploadProgress: (event) => {
+        console.log(`Current progress:`, Math.round((event.loaded * 100) / event.total));
+      },
+    };
+
+    axios.post("/api/upload-pdf", formData, config)
+      .then(console.log)
+      .catch(console.error)
+  }
+
   return (
     <div className="m-8">
-      <div className="flex justify-between mb-4">
-        <button
-          type="button"
-          className={`inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]`}
-          onClick={() => router.replace("/")}>
-          Home
-        </button>
-      </div>
+      <Header />
 
       <div className="flex flex-1 items-stretch">
         <div className='w-300 border-r-2 border-slate-400 p-4'>
@@ -215,7 +225,7 @@ const Documents = () => {
                 confirmDelete ?
                   <div className='float-left block'>
                     <span className='text-red-600'> Are you sure you want to delete? </span>
-                    <button className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] ${loading && "cursor-not-allowed"}`}
+                    <button className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
                       onClick={onDeleteDocument}>
                       <span className='flex items-center'>
                         {
@@ -225,14 +235,14 @@ const Documents = () => {
                     </button>
                   </div>
                   :
-                  <button className="mt-2 float-left inline-block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
+                  <button className="mt-2 float-left inline-block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white"
                     onClick={onDeleteDocument}>
                     Delete
                   </button>
               )
             }
 
-            <button className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] ${loading && "cursor-not-allowed"}`}
+            <button className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
               disabled={loading}
               onClick={onAddDocument}>
               <span className='flex items-center'>
@@ -242,11 +252,15 @@ const Documents = () => {
               </span>
 
             </button>
-          </div>
+            <input onChange={(e) => setSelectedPDF(e.target.files[0])} accept='application/pdf' type='file' />
+            <button
+              className='block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white'
+              onClick={onUploadPDF}
+            >Test PDF</button>
 
+          </div>
         </div>
       </div>
-
     </div >
   )
 }

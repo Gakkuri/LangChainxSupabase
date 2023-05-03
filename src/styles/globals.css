@@ -26,16 +26,6 @@ a {
   text-decoration: none;
 }
 
-td,
-th {
-  padding: 8px;
-}
-
-td {
-  cursor: pointer;
-}
-
-
 .quill .ql-editor {
   min-height: 18em;
 }

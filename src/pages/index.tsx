@@ -5,8 +5,7 @@ import Link from "next/link";
 
 import Loader from "@/components/Loader";
 import axios from "axios";
-
-// const inter = Inter({ subsets: ["latin"] });
+import Header from "@/components/Header";
 
 type Documents = {
   id: number
@@ -59,20 +58,35 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className="h-screen flex flex-col">
-        <div className="flex justify-end p-4">
-          <button
-            className="inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
-            onClick={() => router.push('/documents')}>
-            Documents List
-          </button>
-        </div>
+      <main className="h-screen m-8">
+        <Header />
 
-        <div className="flex flex-col items-center justify-center">
-          <div style={{ width: 300 }}>
+        <div className="m-4">
+          <form
+            onSubmit={onSubmit}
+            className="flex "
+          >
+            <div className="flex w-full mb-4">
+              <input
+                type="text"
+                placeholder="Ask..."
+                className='p-2 grow'
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+              />
+              <button
+                className={`${inflight && "cursor-not-allowed"} flex-none inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal`}
+                type="submit"
+              >
+                {inflight ? <div className="flex items-center"><Loader className="mr-2" /> Processing...</div> : "Submit"}
+              </button>
+            </div>
+          </form>
+          <div>
+            <div>
+              <span className="mb-4">Response: {output}</span>
+            </div>
 
-            <span>Response: {output}</span>
-            <br />
             <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
             {
               sourceDocuments.map((sourceDoc) => {
@@ -86,32 +100,12 @@ export default function Home() {
                       }</Link>
                     </div>
                   </div>
-
                 )
               })
             }
             <span></span>
           </div>
-          <form
-            onSubmit={onSubmit}
-            style={{ display: "flex", flexDirection: "column" }}
-          >
-            <div className="flex items-center my-8">
-              <input
-                type="text"
-                placeholder="Ask..."
-                style={{ padding: 5, width: 200 }}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-              <button
-                className={`${inflight && "cursor-not-allowed"} inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]`}
-                type="submit"
-              >
-                {inflight ? <div className="flex items-center"><Loader className="mr-2" /> Processing...</div> : "Submit"}
-              </button>
-            </div>
-          </form>
+
         </div>
       </main >
     </>
