@@ -206,40 +206,40 @@ const Documents = () => {
       </div>
 
       <div className="flex flex-1 items-stretch">
-        <div className="w-300 border-r-2 border-slate-400 p-4">
-          <h1 className="text-lg font-bold mb-3"> Document List</h1>
-          <ul>
+        <div className="w-80 border-r-2 border-slate-400 p-4">
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer"
+            onClick={() => goToDocument(null)}
+            // className="
+          >
+            {`Create New Document`}
+          </button>
+          <ul className="mt-3">
             <li
               className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${
                 !selectedDocument?.id && "border-cyan-500 text-cyan-500"
               }`}
-            >
-              <a
-                onClick={() => goToDocument(null)}
-                className="whitespace-nowrap cursor-pointer"
-              >
-                {`+ Create New Document`}
-              </a>
-            </li>
-            {documents.map((d) => (
-              <li
-                key={d.id}
-                className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${
-                  selectedDocument?.id === d.id &&
-                  "border-cyan-500 text-cyan-500"
-                }`}
-              >
-                <a
-                  onClick={() => goToDocument(d.id)}
-                  className="whitespace-nowrap cursor-pointer"
+            ></li>
+            {documents.map((d) => {
+              let content_lines = d.content.split("\n");
+              let title = content_lines[0];
+              return (
+                <li
+                  key={d.id}
+                  className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${
+                    selectedDocument?.id === d.id &&
+                    "border-cyan-500 text-cyan-500"
+                  }`}
                 >
-                  <label className="mr-2">{`${d.id} ~`}</label>
-                  {d.content.length > 20
-                    ? `${d.content.substring(0, 20)}...`
-                    : d.content}
-                </a>
-              </li>
-            ))}
+                  <a
+                    onClick={() => goToDocument(d.id)}
+                    className="whitespace-normal cursor-pointer"
+                  >
+                    {title}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </div>
         <div className="p-4 w-full">
