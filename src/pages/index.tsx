@@ -11,7 +11,7 @@ type Documents = {
   id: number
   content: string
   pageContent: string
-  metadata?: { id: number }
+  metadata?: { id?: number, blobType?: string }
   embedding: [number]
   html_string: string
 }
@@ -89,7 +89,7 @@ export default function Home() {
 
             <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
             {
-              sourceDocuments.map((sourceDoc) => {
+              sourceDocuments.map((sourceDoc, i) => {
                 if (sourceDoc?.metadata?.id) return (
                   <div key={sourceDoc?.metadata?.id}>
                     <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">

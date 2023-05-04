@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { SupabaseVectorStore } from "langchain/vectorstores/supabase";
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import { CharacterTextSplitter } from "langchain/text_splitter";
 
 const apiRoute = nextConnect({
   onError(error, req, res) {
@@ -15,38 +16,78 @@ const apiRoute = nextConnect({
   },
 });
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: './public/uploads',
-    filename: (req, file, cb) => cb(null, file.originalname),
-  }),
-});
+const upload = multer()
 
-apiRoute.use(upload.single('file'));
+apiRoute.use(upload.single("file"));
 
 apiRoute.post(async (req, res) => {
+  const embeddings = new OpenAIEmbeddings();
   const supabase = createClient(
     process.env.SUPABASE_URL ?? '',
     process.env.SUPABASE_ANON_KEY ?? ''
   );
 
-  const pdfFile = req.file;
+  // let pdfFile = new Blob(req.file.buffer, { type: 'application/pdf' })
+  let pdfFile = req.file;
 
-  const loader = new PDFLoader(pdfFile.path);
-  const docs = await loader.load();
-  console.log(docs)
+  console.log(pdfFile)
 
-  const vectorStore = await SupabaseVectorStore.fromDocuments(
-    docs,
-    new OpenAIEmbeddings(),
-    {
-      client: supabase,
-      tableName: "documents",
-    }
-  );
+  const { data: dataUpload, error: errorUpload } = await supabase
+    .storage
+    .from('pdf_documents')
+    .upload(`public/${pdfFile.originalname}`, pdfFile.buffer, {
+      cacheControl: '3600',
+      upsert: true,
+      contentType: pdfFile.mimetype
+    })
 
-  res.status(200).json("success")
-});
+  const { data: rawFile, error: errorDownload } = await supabase
+    .storage
+    .from('pdf_documents')
+    .download(dataUpload.path)
+  // .createSignedUrl(data.path, 60)
+
+  const splitter = new CharacterTextSplitter({
+    separator: " ",
+    chunkSize: 1000,
+    chunkOverlap: 3,
+  });
+
+  const loader = new PDFLoader(rawFile);
+  const docs = await loader.loadAndSplit(splitter);
+
+  console.log(docs);
+
+  // await SupabaseVectorStore.fromDocuments(
+  //   docs,
+  //   new OpenAIEmbeddings(),
+  //   {
+  //     client: supabase,
+  //     tableName: "documents",
+  //   }
+  // );
+
+  const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent));
+
+  const { data, error } = await supabase
+    .from('documents')
+    .insert(docs.map((doc, i) => ({
+      content: doc.pageContent,
+      embedding: allEmbeddings[i],
+      metadata: doc.metadata
+    })))
+    .select();
+
+  Promise.all(
+    data?.map((d) => supabase
+      .from('documents')
+      .update({ metadata: { id: d.id, path: dataUpload.path, ...d.metadata } })
+      .eq('id', d.id))
+  )
+
+
+  res.status(200).json("Upload Success!")
+})
 
 export default apiRoute;
 

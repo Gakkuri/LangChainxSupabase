@@ -25,6 +25,7 @@
     "chromadb": "^1.4.1",
     "eslint": "8.36.0",
     "eslint-config-next": "13.2.4",
+    "formidable": "^2.1.1",
     "html-to-text": "^9.0.5",
     "langchain": "^0.0.64",
     "multer": "^1.4.5-lts.1",
@@ -43,7 +44,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.23",
-    "supabase": "1.49.4",
+    "supabase": "^1.54.5",
     "tailwindcss": "^3.3.1"
   }
 }

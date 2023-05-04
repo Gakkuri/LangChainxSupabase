@@ -47,12 +47,12 @@ end;
 $$ language plpgsql;
 
 -- Use Postgres to create a bucket.
--- insert into storage.buckets
---   (id, name)
--- values
---   ('pdf_documents', 'pdf_documents');
+insert into storage.buckets
+  (id, name)
+values
+  ('pdf_documents', 'pdf_documents');
 
--- CREATE POLICY "Allow All 137q3l7_0" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'pdf_documents');
--- CREATE POLICY "Allow All 137q3l7_1" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'pdf_documents');
--- CREATE POLICY "Allow All 137q3l7_2" ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'pdf_documents');
--- CREATE POLICY "Allow All 137q3l7_3" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'pdf_documents');
+CREATE POLICY "Allow All 137q3l7_0" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'pdf_documents');
+CREATE POLICY "Allow All 137q3l7_1" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'pdf_documents');
+CREATE POLICY "Allow All 137q3l7_2" ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'pdf_documents');
+CREATE POLICY "Allow All 137q3l7_3" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'pdf_documents');

@@ -3,6 +3,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from 'next/router';
 import axios, { AxiosRequestConfig } from 'axios';
 
+import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+
 import Header from '@/components/Header';
 import Loader from '@/components/Loader';
 
