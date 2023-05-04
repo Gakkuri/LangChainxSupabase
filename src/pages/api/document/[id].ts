@@ -25,20 +25,31 @@ export default async function handler(req, res) {
           input,
         })
 
-        const updates = {
+        const updateDocument = {
+          content: convert(input),
+          html_string: value,
+          file_type: "RICH_TEXT_EDITOR"
+        }
+
+        const updateChunks = {
           content: convert(input),
           embedding: embeddingResponse.data.data[0].embedding,
-          html_string: value
         }
 
         const { data, error } = await supabase
           .from('documents')
-          .update(updates)
+          .update(updateDocument)
           .eq('id', id)
           .select();
 
+        const { error: errorChunks } = await supabase
+          .from('chunks')
+          .update(updateChunks)
+          .eq('document_id', id)
+          .select();
+
         if (data) res.status(200).json(data)
-        if (error) res.status(error?.code || 500).json(error.message)
+        if (error || errorChunks) res.status(500).json(error?.message || errorChunks?.message)
       } catch (error) {
         res.status(error?.code || 500).json(error.message)
       }
@@ -52,8 +63,14 @@ export default async function handler(req, res) {
         .eq('id', id)
         .select()
 
+      const { error: errorChunks } = await supabase
+        .from('chunks')
+        .delete()
+        .eq('document_id', id)
+        .select()
+
       if (data) res.status(200).json(data)
-      if (error) res.status(error?.code || 500).json(error.message)
+      if (error) res.status(500).json(error?.message || errorChunks?.message)
 
       return;
     }

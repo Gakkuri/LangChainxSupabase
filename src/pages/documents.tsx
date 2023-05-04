@@ -4,19 +4,22 @@ import { useRouter } from 'next/router';
 import axios, { AxiosRequestConfig } from 'axios';
 import Header from '@/components/Header';
 import Loader from '@/components/Loader';
+import { Document, Page } from 'react-pdf/dist/esm/entry.webpack5';
 
 import "react-quill/dist/quill.snow.css";
 import "quill-mention/dist/quill.mention.css";
 
+// const { Document, Page } = dynamic(import('react-pdf/dist/esm/entry.webpack5'));
 const QuillMention = dynamic(import("quill-mention"), { ssr: false });
 const ReactQuill = dynamic(import("react-quill"), { ssr: false });
 
 type Documents = {
   id: number;
   content: string;
-  metadata?: { id: number };
-  embedding: [number];
-  html_string: string;
+  file_type: string;
+  html_string?: string;
+  file_path?: string;
+  url?: string;
 };
 
 const atValues = [
@@ -38,6 +41,7 @@ const Documents = () => {
   const [value, setValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selectedPDF, setSelectedPDF] = useState();
+  const [numPages, setNumPages] = useState(0);
 
   useEffect(() => {
     axios.get("/api/document").then(({ data }) => {
@@ -48,11 +52,17 @@ const Documents = () => {
   useEffect(() => {
     if (router.query.id && documents.length > 0) {
       const foundDoc = documents.find(
-        (d) => d.id === parseInt(router.query.id)
+        (d) => d.id === parseInt(router?.query?.id)
       );
       if (foundDoc) {
-        setSelectedDocument(foundDoc);
-        setValue(foundDoc.html_string);
+        if (foundDoc?.file_type === "PDF") {
+          axios.get("/api/upload-pdf", { params: { path: foundDoc?.file_path } }).then(({ data }) => {
+            setSelectedDocument({ ...foundDoc, url: data });
+          });
+        } else {
+          setSelectedDocument(foundDoc);
+          setValue(foundDoc?.html_string || "");
+        }
       }
     }
   }, [router.query, documents]);
@@ -204,19 +214,34 @@ const Documents = () => {
       },
     };
 
-    axios.post("/api/upload-pdf", formData, config)
-      .then(console.log)
-      .catch(console.error)
+    const { data } = await axios.post("/api/upload-pdf", formData, config)
+    setSelectedPDF(undefined);
   }
+
+  const onPDFLoad = ({ numPages }) => {
+    console.log(numPages)
+    setNumPages(numPages)
+  }
+
+  console.log(selectedDocument)
 
   return (
     <div className="m-8">
       <Header />
 
       <div className="flex flex-1 items-stretch">
-        <div className="w-80 border-r-2 border-slate-400 p-4">
+        <div className="w-120 border-r-2 border-slate-400 p-4">
+          <div className='mb-4 flex flex-row'>
+            <input onChange={(e) => setSelectedPDF(e.target.files[0])} accept='application/pdf' type='file' />
+            <button
+              className='ml-1 block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white'
+              onClick={onUploadPDF}
+            >Test PDF</button>
+          </div>
+
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer"
+            disabled={!selectedPDF}
+            className={`${!selectedPDF && "cursor-not-allowed"} bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
             onClick={() => goToDocument(null)}
           // className="
           >
@@ -249,15 +274,23 @@ const Documents = () => {
           </ul>
         </div>
         <div className="p-4 w-full">
-          <ReactQuill
-            bounds=".quill"
-            theme="snow"
-            value={value}
-            onChange={setValue}
-            modules={{
-              mention: mentionModule,
-            }}
-          />
+          {
+            selectedDocument?.file_type === "PDF" ?
+              <Document file={selectedDocument.url} onLoadSuccess={onPDFLoad} onLoadError={(err) => console.log(err)}>
+                <Page pageNumber={1} />
+              </Document>
+              :
+              <ReactQuill
+                bounds=".quill"
+                theme="snow"
+                value={value}
+                onChange={setValue}
+                modules={{
+                  mention: mentionModule,
+                }}
+              />
+          }
+
           <div>
             {selectedDocument &&
               (confirmDelete ? (
@@ -267,7 +300,7 @@ const Documents = () => {
                     Are you sure you want to delete?{" "}
                   </span>
                   <button
-                    className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] ${loading && "cursor-not-allowed"
+                    className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white"
                       }`}
                     onClick={onDeleteDocument}
                   >
@@ -284,7 +317,7 @@ const Documents = () => {
                 </div>
               ) : (
                 <button
-                  className="mt-2 float-left inline-block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)]"
+                  className="mt-2 float-left inline-block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white"
                   onClick={onDeleteDocument}
                 >
                   Delete
@@ -292,7 +325,7 @@ const Documents = () => {
               ))}
 
             <button
-              className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white shadow-[0_4px_9px_-4px_#3b71ca] transition duration-150 ease-in-out hover:bg-primary-600 hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:bg-primary-600 focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] focus:outline-none focus:ring-0 active:bg-primary-700 active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.3),0_4px_18px_0_rgba(59,113,202,0.2)] dark:shadow-[0_4px_9px_-4px_rgba(59,113,202,0.5)] dark:hover:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:focus:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] dark:active:shadow-[0_8px_9px_-4px_rgba(59,113,202,0.2),0_4px_18px_0_rgba(59,113,202,0.1)] ${loading && "cursor-not-allowed"
+              className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
                 }`}
               disabled={loading}
               onClick={onAddDocument}
@@ -307,12 +340,6 @@ const Documents = () => {
                 )}
               </span>
             </button>
-            <input onChange={(e) => setSelectedPDF(e.target.files[0])} accept='application/pdf' type='file' />
-            <button
-              className='block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white'
-              onClick={onUploadPDF}
-            >Test PDF</button>
-
           </div>
         </div>
       </div>

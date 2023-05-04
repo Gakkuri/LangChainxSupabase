@@ -4,11 +4,21 @@ create extension vector;
 -- Create a table to store your documents
 create table documents (
   id bigserial primary key,
+  html_string text,
+  content text,
+  file_type text,
+  file_path text
+);
+
+-- Create a table to store your chunks
+create table chunks (
+  id bigserial primary key,
+  document_id bigserial not null references documents, -- foreign key that reference documents table
   content text,  -- corresponds to Document.pageContent
   metadata jsonb,  -- corresponds to Document.metadata
-  embedding vector(1536),  -- 1536 works for OpenAI embeddings, change if needed
-  html_string text   -- storage of QuillJS document format
+  embedding vector(1536)  -- 1536 works for OpenAI embeddings, change if needed
 );
+
 
 -- Create a function to search for documents
 create function match_documents(query_embedding vector(1536), match_count int)
@@ -22,9 +32,9 @@ begin
     id,
     content,
     metadata,
-    1 - (documents.embedding <=> query_embedding) as similarity
-  from documents
-  order by documents.embedding <=> query_embedding
+    1 - (chunks.embedding <=> query_embedding) as similarity
+  from chunks
+  order by chunks.embedding <=> query_embedding
   limit match_count;
 end;
 $$
@@ -38,7 +48,7 @@ as $$
 begin
 return query execute
 format('select id, content, metadata, ts_rank(to_tsvector(content), plainto_tsquery($1)) as similarity
-from documents
+from chunks
 where to_tsvector(content) @@ plainto_tsquery($1)
 order by similarity desc
 limit $2')

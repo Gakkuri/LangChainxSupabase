@@ -11,7 +11,7 @@ type Documents = {
   id: number
   content: string
   pageContent: string
-  metadata?: { id?: number, blobType?: string }
+  metadata?: { id: number, blobType?: string }
   embedding: [number]
   html_string: string
 }

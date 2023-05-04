@@ -20,6 +20,24 @@ const upload = multer()
 
 apiRoute.use(upload.single("file"));
 
+apiRoute.get(async (req, res) => {
+  const supabase = createClient(
+    process.env.SUPABASE_URL ?? '',
+    process.env.SUPABASE_ANON_KEY ?? ''
+  );
+
+  const { path } = req.query;
+
+  const { data, error } = await supabase
+    .storage
+    .from('pdf_documents')
+    .createSignedUrl(path, 300)
+
+  if (error) res.status(500).json(error)
+  else res.status(200).json(data.signedUrl)
+})
+
+
 apiRoute.post(async (req, res) => {
   const embeddings = new OpenAIEmbeddings();
   const supabase = createClient(
@@ -27,10 +45,7 @@ apiRoute.post(async (req, res) => {
     process.env.SUPABASE_ANON_KEY ?? ''
   );
 
-  // let pdfFile = new Blob(req.file.buffer, { type: 'application/pdf' })
   let pdfFile = req.file;
-
-  console.log(pdfFile)
 
   const { data: dataUpload, error: errorUpload } = await supabase
     .storage
@@ -44,7 +59,7 @@ apiRoute.post(async (req, res) => {
   const { data: rawFile, error: errorDownload } = await supabase
     .storage
     .from('pdf_documents')
-    .download(dataUpload.path)
+    .download(dataUpload?.path || "")
   // .createSignedUrl(data.path, 60)
 
   const splitter = new CharacterTextSplitter({
@@ -53,38 +68,34 @@ apiRoute.post(async (req, res) => {
     chunkOverlap: 3,
   });
 
-  const loader = new PDFLoader(rawFile);
+  const loader = new PDFLoader(rawFile || "");
   const docs = await loader.loadAndSplit(splitter);
 
-  console.log(docs);
-
-  // await SupabaseVectorStore.fromDocuments(
-  //   docs,
-  //   new OpenAIEmbeddings(),
-  //   {
-  //     client: supabase,
-  //     tableName: "documents",
-  //   }
-  // );
+  const insertDocument = {
+    content: pdfFile.originalname,
+    file_type: "PDF",
+    file_path: dataUpload?.path
+  }
 
   const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent));
 
   const { data, error } = await supabase
     .from('documents')
+    .insert(insertDocument)
+    .select();
+
+  const { error: errorChunk } = await supabase
+    .from('chunks')
     .insert(docs.map((doc, i) => ({
       content: doc.pageContent,
       embedding: allEmbeddings[i],
-      metadata: doc.metadata
+      document_id: data?.[0].id,
+      metadata: {
+        document_id: data?.[0].id,
+      }
     })))
-    .select();
 
-  Promise.all(
-    data?.map((d) => supabase
-      .from('documents')
-      .update({ metadata: { id: d.id, path: dataUpload.path, ...d.metadata } })
-      .eq('id', d.id))
-  )
-
+  console.log(errorChunk)
 
   res.status(200).json("Upload Success!")
 })

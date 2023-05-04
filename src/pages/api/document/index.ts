@@ -34,22 +34,26 @@ export default async function handler(req, res) {
           input,
         })
 
-        const insert = {
+        const insertDocument = {
+          content: convert(input),
+          html_string: value,
+          file_type: "RICH_TEXT_EDITOR"
+        }
+
+        const insertChunks = {
           content: convert(input),
           embedding: embeddingResponse.data.data[0].embedding,
-          html_string: value
         }
 
         const { data, error } = await supabase
           .from('documents')
-          .insert(insert)
+          .insert(insertDocument)
           .select();
 
-        const new_document_id = data[0].id;
+        const document_id = data[0].id;
         const { data: dataUpdate, error: errorUpdate } = await supabase
-          .from('documents')
-          .update({ metadata: { id: new_document_id } })
-          .eq('id', new_document_id)
+          .from('chunks')
+          .insert({ ...insertChunks, document_id, metadata: { document_id: document_id } })
           .select();
 
         if (dataUpdate) res.status(200).json(dataUpdate)
