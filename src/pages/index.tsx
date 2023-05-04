@@ -11,7 +11,12 @@ type Documents = {
   id: number
   content: string
   pageContent: string
-  metadata?: { id: number, blobType?: string }
+  metadata?: {
+    document_id: number,
+    loc?: {
+      pageNumber: number
+    }
+  }
   embedding: [number]
   html_string: string
 }
@@ -90,10 +95,10 @@ export default function Home() {
             <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
             {
               sourceDocuments.map((sourceDoc, i) => {
-                if (sourceDoc?.metadata?.id) return (
-                  <div key={sourceDoc?.metadata?.id}>
+                if (sourceDoc?.metadata?.document_id) return (
+                  <div key={sourceDoc?.metadata?.document_id}>
                     <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">
-                      <Link href={{ pathname: `/documents/`, query: { id: sourceDoc?.metadata?.id } }}>{
+                      <Link href={{ pathname: `/documents/`, query: { id: sourceDoc?.metadata?.document_id, pageNumber: sourceDoc?.metadata?.loc?.pageNumber } }}>{
                         sourceDoc?.pageContent.length > 20 ?
                           `${sourceDoc?.pageContent.substring(0, 20)}...`
                           : sourceDoc?.pageContent

@@ -219,11 +219,10 @@ const Documents = () => {
   }
 
   const onPDFLoad = ({ numPages }) => {
-    console.log(numPages)
     setNumPages(numPages)
   }
 
-  console.log(selectedDocument)
+  console.log(router?.query?.pageNumber)
 
   return (
     <div className="m-8">
@@ -277,7 +276,7 @@ const Documents = () => {
           {
             selectedDocument?.file_type === "PDF" ?
               <Document file={selectedDocument.url} onLoadSuccess={onPDFLoad} onLoadError={(err) => console.log(err)}>
-                <Page pageNumber={1} />
+                <Page pageNumber={parseInt(router?.query?.pageNumber || 1)} />
               </Document>
               :
               <ReactQuill

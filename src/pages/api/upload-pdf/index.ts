@@ -91,6 +91,7 @@ apiRoute.post(async (req, res) => {
       embedding: allEmbeddings[i],
       document_id: data?.[0].id,
       metadata: {
+        ...doc.metadata,
         document_id: data?.[0].id,
       }
     })))
