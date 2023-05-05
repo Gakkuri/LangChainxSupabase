@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { SupabaseVectorStore } from "langchain/vectorstores/supabase";
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
-import { CharacterTextSplitter } from "langchain/text_splitter";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 const apiRoute = nextConnect({
   onError(error, req, res) {
@@ -62,11 +62,7 @@ apiRoute.post(async (req, res) => {
     .download(dataUpload?.path || "")
   // .createSignedUrl(data.path, 60)
 
-  const splitter = new CharacterTextSplitter({
-    separator: " ",
-    chunkSize: 1000,
-    chunkOverlap: 3,
-  });
+  const splitter = new RecursiveCharacterTextSplitter();
 
   const loader = new PDFLoader(rawFile || "");
   const docs = await loader.loadAndSplit(splitter);
@@ -77,7 +73,7 @@ apiRoute.post(async (req, res) => {
     file_path: dataUpload?.path
   }
 
-  const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent));
+  const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent.replace(/\u0000/g, '')));
 
   const { data, error } = await supabase
     .from('documents')
@@ -87,18 +83,18 @@ apiRoute.post(async (req, res) => {
   const { error: errorChunk } = await supabase
     .from('chunks')
     .insert(docs.map((doc, i) => ({
-      content: doc.pageContent,
+      content: doc.pageContent.replace(/\u0000/g, ''),
       embedding: allEmbeddings[i],
       document_id: data?.[0].id,
       metadata: {
         ...doc.metadata,
         document_id: data?.[0].id,
       }
-    })))
+    })).filter(doc => !!doc))
 
-  console.log(errorChunk)
+  if (error || errorChunk) return res.status(500).json(error?.message || errorChunk?.message)
 
-  res.status(200).json("Upload Success!")
+  res.status(200).json(data)
 })
 
 export default apiRoute;

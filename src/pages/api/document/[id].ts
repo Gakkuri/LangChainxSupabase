@@ -36,16 +36,16 @@ export default async function handler(req, res) {
           embedding: embeddingResponse.data.data[0].embedding,
         }
 
-        const { data, error } = await supabase
-          .from('documents')
-          .update(updateDocument)
-          .eq('id', id)
-          .select();
-
         const { error: errorChunks } = await supabase
           .from('chunks')
           .update(updateChunks)
           .eq('document_id', id)
+          .select();
+
+        const { data, error } = await supabase
+          .from('documents')
+          .update(updateDocument)
+          .eq('id', id)
           .select();
 
         if (data) res.status(200).json(data)
@@ -57,20 +57,21 @@ export default async function handler(req, res) {
       return;
     }
     case "DELETE": {
-      const { data, error } = await supabase
-        .from('documents')
-        .delete()
-        .eq('id', id)
-        .select()
-
       const { error: errorChunks } = await supabase
         .from('chunks')
         .delete()
         .eq('document_id', id)
         .select()
 
-      if (data) res.status(200).json(data)
+      const { data, error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', id)
+        .select()
+
       if (error) res.status(500).json(error?.message || errorChunks?.message)
+      if (data) res.status(200).json(data)
+
 
       return;
     }

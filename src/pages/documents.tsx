@@ -1,15 +1,14 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from 'next/router';
 import axios, { AxiosRequestConfig } from 'axios';
 import Header from '@/components/Header';
 import Loader from '@/components/Loader';
-import { Document, Page } from 'react-pdf/dist/esm/entry.webpack5';
 
 import "react-quill/dist/quill.snow.css";
 import "quill-mention/dist/quill.mention.css";
 
-// const { Document, Page } = dynamic(import('react-pdf/dist/esm/entry.webpack5'));
+const PdfViewer = dynamic(import("../components/PdfViewer"), { ssr: false });
 const QuillMention = dynamic(import("quill-mention"), { ssr: false });
 const ReactQuill = dynamic(import("react-quill"), { ssr: false });
 
@@ -35,18 +34,22 @@ const hashValues = [
 const Documents = () => {
   const router = useRouter();
 
+  const fileInput = useRef();
+
+  const [loadingDocs, setLoadingDocs] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<Array<Documents>>([]);
   const [selectedDocument, setSelectedDocument] = useState<Documents>();
   const [value, setValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [selectedPDF, setSelectedPDF] = useState();
-  const [numPages, setNumPages] = useState(0);
+  const [selectedPDF, setSelectedPDF] = useState<File | null>();
 
   useEffect(() => {
     axios.get("/api/document").then(({ data }) => {
       setDocuments(data);
-    });
+    }).catch(console.error)
+      .finally(() => setLoadingDocs(false));
   }, []);
 
   useEffect(() => {
@@ -93,7 +96,9 @@ const Documents = () => {
   }, []);
 
   const goToDocument = (id: number | null) => {
+    console.log("null id", id)
     if (!id) {
+      console.log("null id")
       router.replace({
         query: {}
       })
@@ -204,25 +209,28 @@ const Documents = () => {
   };
 
   const onUploadPDF = async () => {
+    setUploading(true)
     let formData = new FormData();
     formData.append("file", selectedPDF);
 
-    const config: AxiosRequestConfig = {
-      headers: { 'content-type': `multipart/form-data` },
-      onUploadProgress: (event) => {
-        console.log(`Current progress:`, Math.round((event.loaded * 100) / event.total));
-      },
-    };
+    try {
+      const config: AxiosRequestConfig = {
+        headers: { 'content-type': `multipart/form-data` },
+        onUploadProgress: (event) => {
+          console.log(`Current progress:`, Math.round((event.loaded * 100) / (event?.total || 0)));
+        },
+      };
 
-    const { data } = await axios.post("/api/upload-pdf", formData, config)
-    setSelectedPDF(undefined);
+      const { data } = await axios.post("/api/upload-pdf", formData, config)
+      setSelectedPDF(undefined);
+      setDocuments([...documents, data[0]]);
+      fileInput.current.value = "";
+    } catch (err) {
+      console.log(err)
+    } finally {
+      setUploading(false);
+    }
   }
-
-  const onPDFLoad = ({ numPages }) => {
-    setNumPages(numPages)
-  }
-
-  console.log(router?.query?.pageNumber)
 
   return (
     <div className="m-8">
@@ -230,64 +238,90 @@ const Documents = () => {
 
       <div className="flex flex-1 items-stretch">
         <div className="w-120 border-r-2 border-slate-400 p-4">
-          <div className='mb-4 flex flex-row'>
-            <input onChange={(e) => setSelectedPDF(e.target.files[0])} accept='application/pdf' type='file' />
-            <button
-              className='ml-1 block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white'
-              onClick={onUploadPDF}
-            >Test PDF</button>
-          </div>
-
           <button
-            disabled={!selectedPDF}
             className={`${!selectedPDF && "cursor-not-allowed"} bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
             onClick={() => goToDocument(null)}
-          // className="
           >
             {`Create New Document`}
           </button>
           <ul className="mt-3">
             <li
-              className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${!selectedDocument?.id && "border-cyan-500 text-cyan-500"
+              className={`border-l-2 ml-2 my-1 hover:border-cyan-300 hover:text-cyan-300 ${!selectedDocument?.id && "border-cyan-500 text-cyan-500"
                 }`}
             ></li>
-            {documents.map((d) => {
-              let content_lines = d.content.split("\n");
-              let title = content_lines[0];
-              return (
-                <li
-                  key={d.id}
-                  className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${selectedDocument?.id === d.id &&
-                    "border-cyan-500 text-cyan-500"
-                    }`}
-                >
-                  <a
-                    onClick={() => goToDocument(d.id)}
-                    className="whitespace-normal cursor-pointer"
+            {loadingDocs ?
+              <div className="flex flex-col items-center">
+                <Loader className="fill-white" /> Loading Documents
+              </div>
+
+              :
+              documents.map((d) => {
+                let content_lines = d.content.split("\n");
+                let title = content_lines[0];
+                return (
+                  <li
+                    key={d.id}
+                    className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${selectedDocument?.id === d.id &&
+                      "border-cyan-500 text-cyan-500"
+                      }`}
                   >
-                    {title}
-                  </a>
-                </li>
-              );
-            })}
+                    <a
+                      onClick={() => goToDocument(d.id)}
+                      className="whitespace-normal cursor-pointer"
+                    >
+                      {title}
+                    </a>
+                  </li>
+                );
+              })}
           </ul>
         </div>
         <div className="p-4 w-full">
           {
             selectedDocument?.file_type === "PDF" ?
-              <Document file={selectedDocument.url} onLoadSuccess={onPDFLoad} onLoadError={(err) => console.log(err)}>
-                <Page pageNumber={parseInt(router?.query?.pageNumber || 1)} />
-              </Document>
-              :
-              <ReactQuill
-                bounds=".quill"
-                theme="snow"
-                value={value}
-                onChange={setValue}
-                modules={{
-                  mention: mentionModule,
-                }}
+              <PdfViewer
+                file={selectedDocument.url || ""}
+                pageNumber={parseInt(router?.query?.pageNumber || 1)}
+                id={selectedDocument.id}
               />
+              :
+              <>
+                {
+                  !selectedDocument && (
+                    <div className="text-center">
+                      <label className="block mb-4 text-bold">Upload PDF</label>
+                      <div className='mb-4 flex flex-row justify-center'>
+                        <input ref={fileInput} onChange={(e) => setSelectedPDF(e?.target?.files?.[0])} accept='application/pdf' type='file' />
+                        <button
+                          disabled={!selectedPDF || uploading}
+                          className={`${(!selectedPDF || uploading) && "cursor-not-allowed"} ml-1 block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
+                          onClick={onUploadPDF}
+                        >
+                          <span className="flex items-center">
+                            {
+                              uploading ? <>
+                                <Loader className="mr-2" /> Uploading...
+                              </>
+                                : "Upload PDF"
+                            }
+                          </span>
+                        </button>
+                      </div>
+                      <span className="block text-bold text-xl mb-4">-- OR --</span>
+                      <label className="block mb-4 text-bold text-center">Create Your Own Document</label>
+                    </div>
+                  )
+                }
+                <ReactQuill
+                  bounds=".quill"
+                  theme="snow"
+                  value={value}
+                  onChange={setValue}
+                  modules={{
+                    mention: mentionModule,
+                  }}
+                />
+              </>
           }
 
           <div>
@@ -323,22 +357,26 @@ const Documents = () => {
                 </button>
               ))}
 
-            <button
-              className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
-                }`}
-              disabled={loading}
-              onClick={onAddDocument}
-            >
-              <span className="flex items-center">
-                {loading ? (
-                  <>
-                    <Loader className="mr-2" /> Processing...
-                  </>
-                ) : (
-                  "Submit"
-                )}
-              </span>
-            </button>
+            {
+              selectedDocument?.file_type !== "PDF" && (
+                <button
+                  className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
+                    }`}
+                  disabled={loading}
+                  onClick={onAddDocument}
+                >
+                  <span className="flex items-center">
+                    {loading ? (
+                      <>
+                        <Loader className="mr-2" /> Processing...
+                      </>
+                    ) : (
+                      "Submit"
+                    )}
+                  </span>
+                </button>
+              )
+            }
           </div>
         </div>
       </div>
