@@ -44,7 +44,7 @@
     "@types/react-pdf": "^6.2.0",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.23",
-    "supabase": "^1.54.5",
+    "supabase": "^1.55.1",
     "tailwindcss": "^3.3.1"
   }
 }

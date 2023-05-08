@@ -34,7 +34,7 @@ const hashValues = [
 const Documents = () => {
   const router = useRouter();
 
-  const fileInput = useRef();
+  const fileInput = useRef({ value: "" });
 
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loading, setLoading] = useState(false);

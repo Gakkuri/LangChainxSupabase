@@ -61,16 +61,16 @@ const PdfViewer = ({ file, pageNumber, id }: Props) => {
   }
 
   return (
-    <div>
-      <Document file={file} onLoadSuccess={onPDFLoad} onLoadError={(err: Error) => console.log(err)}>
-        <Page pageNumber={currentPageNumber} renderTextLayer={false} renderAnnotationLayer={false} />
-      </Document>
-      <div className='flex items-center justify-center'>
+    <>
+      <div className='flex items-center justify-center mb-2'>
         <span onClick={onPrev} className={`${currentPageNumber <= 1 && "invisible"} mr-2 text-4xl cursor-pointer`}>{"<"}</span>
         <span className='mt-2'>Page <input className='w-12 px-1' onChange={onChangePage} value={currentPageNumber}></input> of {numPages}</span>
         <span onClick={onNext} className={`${currentPageNumber >= numPages && "invisible"} ml-2 text-4xl cursor-pointer`}>{">"}</span>
       </div>
-    </div>
+      <Document file={file} onLoadSuccess={onPDFLoad} onLoadError={(err: Error) => console.log(err)}>
+        <Page pageNumber={currentPageNumber} renderTextLayer={false} renderAnnotationLayer={false} />
+      </Document>
+    </>
   )
 }
 
