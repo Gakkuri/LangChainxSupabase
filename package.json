@@ -6,7 +6,7 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:dev": "supabase functions serve --env-file supabase/.env",
-    "supabase:deploy": "supabase secrets set --env-file ./supabase/.env && supabase functions deploy vector --import-map supabase/functions/import_map_deploy.json",
+    "supabase:deploy": "supabase secrets set --env-file ./supabase/.env && supabase functions deploy login --import-map supabase/functions/import_map_deploy.json",
     "dev": "next dev --port 3100 --hostname localhost",
     "build": "next build",
     "start": "next start",
@@ -15,8 +15,9 @@
   "dependencies": {
     "@microsoft/fetch-event-source": "^2.0.1",
     "@pinecone-database/pinecone": "^0.0.14",
-    "@supabase/auth-helpers-nextjs": "^0.5.6",
+    "@supabase/auth-helpers-nextjs": "^0.6.1",
     "@supabase/auth-helpers-react": "^0.3.1",
+    "@supabase/auth-ui-react": "^0.3.6",
     "@supabase/supabase-js": "^2.11.0",
     "@types/node": "18.15.3",
     "@types/react": "18.0.28",
@@ -44,7 +45,7 @@
     "@types/react-pdf": "^6.2.0",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.23",
-    "supabase": "^1.55.1",
+    "supabase": "^1.57.0",
     "tailwindcss": "^3.3.1"
   }
 }

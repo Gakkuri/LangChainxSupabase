@@ -101,9 +101,6 @@ export default apiRoute;
 
 export const config = {
   api: {
-    // bodyParser: false, // Disallow body parsing, consume as stream
-    bodyParser: {
-      sizeLimit: '20mb',
-    },
+    bodyParser: false, // Disallow body parsing, consume as stream
   },
 };

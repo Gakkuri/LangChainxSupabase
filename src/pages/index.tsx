@@ -24,6 +24,13 @@ type Documents = {
 export default function Home() {
   const router = useRouter();
 
+  useEffect(() => {
+    axios.get('/api/server-client')
+      .then((c) => {
+        console.log(c);
+      })
+  }, [])
+
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
   const [sourceDocuments, setSourceDocuments] = useState<Array<Documents>>([]);

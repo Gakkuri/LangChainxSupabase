@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { Configuration, OpenAIApi } from 'openai';
 import { convert } from 'html-to-text';
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function handler(req, res) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestMethod = req.method;
 
   const supabase = createClient(
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
         .select()
         .then(({ data, error }) => {
           if (data) res.status(200).json(data)
-          if (error) res.status(error?.code || 500).json(error.message)
+          if (error) res.status(500).json(error.message)
         })
     }
     case "POST": {
@@ -57,9 +58,9 @@ export default async function handler(req, res) {
           .select();
 
         if (data) res.status(200).json(data)
-        if (error || errorUpdate) res.status(error?.code || 500).json(error?.message || errorUpdate?.message)
+        if (error || errorUpdate) res.status(500).json(error?.message || errorUpdate?.message)
       } catch (error) {
-        res.status(error?.code || 500).json(error.message)
+        res.status(500).json(error.message)
       }
 
       return;
