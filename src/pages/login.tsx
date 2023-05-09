@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios';
+import { ThemeSupa } from '@supabase/auth-ui-shared'
 import Header from '@/components/Header';
+import { Auth } from '@supabase/auth-ui-react';
+import { useUser, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/router';
 
 const Login = () => {
   const router = useRouter();
-
+  const supabaseClient = useSupabaseClient()
 
   const onGoogleLogin = async () => {
     try {
@@ -17,6 +20,13 @@ const Login = () => {
     }
 
   }
+
+
+  // return <Auth
+  //   supabaseClient={supabaseClient}
+  //   providers={['google']}
+  //   appearance={{ theme: ThemeSupa }}
+  // />
 
   return (
     <div className='h-screen flex items-center justify-center'>

@@ -1,9 +1,18 @@
 -- Enable the pgvector extension to work with embedding vectors
 create extension vector;
 
+-- Create a table to store your users
+create table users (
+  id uuid not null references auth.users on delete cascade,
+  name text,
+  email text,
+  primary key (id)
+);
+
 -- Create a table to store your documents
 create table documents (
   id bigserial primary key,
+  user_id uuid not null references users on delete cascade, -- foreign key that reference user table
   html_string text,
   content text,
   file_type text,
@@ -13,11 +22,16 @@ create table documents (
 -- Create a table to store your chunks
 create table chunks (
   id bigserial primary key,
-  document_id bigserial not null references documents, -- foreign key that reference documents table
+  document_id bigserial not null references documents on delete cascade, -- foreign key that reference documents table
   content text,  -- corresponds to Document.pageContent
   metadata jsonb,  -- corresponds to Document.metadata
   embedding vector(1536)  -- 1536 works for OpenAI embeddings, change if needed
 );
+
+-- Altering table to enable RLS
+alter table users enable row level security;
+alter table documents enable row level security;
+alter table chunks enable row level security;
 
 -- Create a function to search for documents
 create function match_documents(query_embedding vector(1536), match_count int)
@@ -54,6 +68,24 @@ limit $2')
 using query_text, match_count;
 end;
 $$ language plpgsql;
+
+-- Create a trigger function that automatically populate user db
+create function handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into users (id, name, email)
+  values (new.id, new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'email');
+  return new;
+end;
+$$;
+
+-- trigger the function every time a user is created
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- Use Postgres to create a bucket.
 insert into storage.buckets

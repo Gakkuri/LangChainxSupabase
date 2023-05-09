@@ -1,10 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
+// import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function handler(req, res) {
-  const supabase = createClient(
-    process.env.SUPABASE_URL ?? '',
-    process.env.SUPABASE_ANON_KEY ?? ''
-  );
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // const supabase = createClient(
+  //   process.env.SUPABASE_URL ?? '',
+  //   process.env.SUPABASE_ANON_KEY ?? ''
+  // );
+
+  const supabase = createServerSupabaseClient({
+    req, res
+  })
+
   const { input } = req.body;
 
   const { data, error } = await supabase.functions.invoke("vector", {

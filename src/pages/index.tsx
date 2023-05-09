@@ -1,6 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useUser } from '@supabase/auth-helpers-react'
 import Link from "next/link";
 
 import Loader from "@/components/Loader";
@@ -24,12 +25,12 @@ type Documents = {
 export default function Home() {
   const router = useRouter();
 
-  useEffect(() => {
-    axios.get('/api/server-client')
-      .then((c) => {
-        console.log(c);
-      })
-  }, [])
+  // useEffect(() => {
+  //   axios.get('/api/server-client')
+  //     .then((c) => {
+  //       console.log(c);
+  //     })
+  // }, [])
 
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");

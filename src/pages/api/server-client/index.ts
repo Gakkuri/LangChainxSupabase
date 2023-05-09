@@ -1,35 +1,26 @@
 // Creating a new supabase server client object (e.g. in API route):
-import { createClient } from '@supabase/supabase-js'
+// import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs'
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 const Server = async (req: NextApiRequest, res: NextApiResponse) => {
   const requestMethod = req.method;
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL ?? '',
-    process.env.SUPABASE_ANON_KEY ?? ''
-  );
+  const supabase = createServerSupabaseClient({
+    req, res
+  })
 
   switch (requestMethod) {
     case "GET": {
-      // const { data: { session } } = await supabase.auth.getSession();
-      // console.log(session)
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log(user)
 
-      const { data, error } = await supabase.functions.invoke("login", {
-        body: { type: "GET_USER" }
-      });
-      console.log(data)
-
-      return res.status(200).json(data)
+      return res.status(200).json(user)
     }
     case "POST": {
-      // const { data, error } = await supabase.auth.signInWithOAuth({
-      //   provider: 'google',
-      // })
-
-      const { data, error } = await supabase.functions.invoke("login", {
-        body: { type: "LOGIN" }
-      });
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      })
 
       console.log(data, error);
 

@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+// import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs'
 import { Configuration, OpenAIApi } from 'openai';
 import { convert } from 'html-to-text';
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -6,10 +7,14 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const requestMethod = req.method;
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL ?? '',
-    process.env.SUPABASE_ANON_KEY ?? ''
-  );
+  // const supabase = createClient(
+  //   process.env.SUPABASE_URL ?? '',
+  //   process.env.SUPABASE_ANON_KEY ?? ''
+  // );
+
+  const supabase = createServerSupabaseClient({
+    req, res
+  })
 
   const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY })
   const openAi = new OpenAIApi(configuration);
