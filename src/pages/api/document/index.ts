@@ -16,10 +16,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req, res
   })
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session)
+    return res.status(401).json({
+      error: 'not_authenticated',
+      description: 'The user does not have an active session or is not authenticated',
+    })
+
+
+  const userId = session.user.id;
   const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY })
   const openAi = new OpenAIApi(configuration);
   const { value, id } = req.body;
-
 
   switch (requestMethod) {
     case "GET": {
@@ -33,6 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     case "POST": {
       try {
+
         const input = value.replace(/\n/g, ' ')
 
         const embeddingResponse = await openAi.createEmbedding({
@@ -41,12 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
 
         const insertDocument = {
+          user_id: userId,
           content: convert(input),
           html_string: value,
           file_type: "RICH_TEXT_EDITOR"
         }
 
         const insertChunks = {
+          user_id: userId,
           content: convert(input),
           embedding: embeddingResponse.data.data[0].embedding,
         }
@@ -56,7 +70,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .insert(insertDocument)
           .select();
 
-        const document_id = data[0].id;
+        console.log(error);
+
+        const document_id = data?.[0].id;
         const { error: errorUpdate } = await supabase
           .from('chunks')
           .insert({ ...insertChunks, document_id, metadata: { document_id: document_id } })
@@ -65,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (data) res.status(200).json(data)
         if (error || errorUpdate) res.status(500).json(error?.message || errorUpdate?.message)
       } catch (error) {
-        res.status(500).json(error.message)
+        if (error instanceof Error) res.status(500).json(error.message)
       }
 
       return;

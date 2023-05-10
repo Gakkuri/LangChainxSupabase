@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { useSession } from "@supabase/auth-helpers-react";
 import axios from 'axios'
-import { useRouter } from 'next/router'
+import Router, { useRouter } from 'next/router'
 
 type Props = {
   className?: string
@@ -10,11 +10,11 @@ type Props = {
 const Header = (props: Props) => {
   const router = useRouter();
   const session = useSession();
-  console.log(session)
 
   const onLogout = async () => {
     try {
       const data = await axios.post('/api/server-client/logout');
+      Router.reload();
     } catch (err) {
       console.error(err)
     }

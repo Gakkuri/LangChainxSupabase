@@ -22,18 +22,12 @@ const Server = async (req: NextApiRequest, res: NextApiResponse) => {
         provider: 'google',
       })
 
-      console.log(data, error);
-
       if (data) res.status(200).json(data)
-      if (error) res.status(error?.code || 500).json(error.message)
+      if (error) res.status(500).json(error.message)
       return;
     }
     default: res.status(200).json("Server API")
   }
-
-
-
-
 }
 
 export default Server;

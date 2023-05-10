@@ -6,10 +6,8 @@ import Header from '@/components/Header';
 import Loader from '@/components/Loader';
 
 import "react-quill/dist/quill.snow.css";
-import "quill-mention/dist/quill.mention.css";
 
 const PdfViewer = dynamic(import("../components/PdfViewer"), { ssr: false });
-const QuillMention = dynamic(import("quill-mention"), { ssr: false });
 const ReactQuill = dynamic(import("react-quill"), { ssr: false });
 
 type Documents = {
@@ -20,16 +18,6 @@ type Documents = {
   file_path?: string;
   url?: string;
 };
-
-const atValues = [
-  { id: 1, value: "At Value 1" },
-  { id: 2, value: "At Value 2" },
-];
-const hashValues = [
-  { id: 3, value: "Hash Value 1" },
-  { id: 4, value: "Hash Value 2" },
-  { id: 5, value: "Story" },
-];
 
 const Documents = () => {
   const router = useRouter();
@@ -70,44 +58,19 @@ const Documents = () => {
     }
   }, [router.query, documents]);
 
-  useEffect(() => {
-    window.addEventListener(
-      "mention-hovered",
-      (event) => {
-        console.log("hovered: ", event);
-      },
-      false
-    );
-    window.addEventListener(
-      "mention-clicked",
-      (event) => {
-        console.log("clicked: ", event);
-      },
-      false
-    );
-    return () => {
-      window.removeEventListener("mention-hovered", (event) => {
-        console.log("hovered: ", event);
-      });
-      window.removeEventListener("mention-clicked", (event) => {
-        console.log("clicked: ", event);
-      });
-    };
-  }, []);
-
   const goToDocument = (id: number | null) => {
-    console.log("null id", id)
     if (!id) {
-      console.log("null id")
       router.replace({
         query: {}
       })
       setSelectedDocument(undefined);
       setValue("");
+      setConfirmDelete(false);
       return;
     }
     const document = documents.find((d) => id === d.id);
     if (document) {
+      setConfirmDelete(false);
       router.replace({
         query: { id }
       })
@@ -174,42 +137,10 @@ const Documents = () => {
     }
   };
 
-  const mentionModule = {
-    allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
-    mentionDenotationChars: ["@", "#"],
-    source: useCallback(
-      (
-        searchTerm: string,
-        renderItem: (
-          arg0: { id: number; value: string }[] | undefined,
-          arg1: any
-        ) => void,
-        mentionChar: string
-      ) => {
-        let values;
-
-        if (mentionChar === "@") {
-          values = atValues;
-        } else if (mentionChar === "#") {
-          values = hashValues;
-        }
-
-        if (searchTerm.length === 0) {
-          renderItem(values, searchTerm);
-        } else if (values) {
-          const matches = [];
-          for (let i = 0; i < values.length; i += 1)
-            if (values[i].value.toLowerCase().indexOf(searchTerm.toLowerCase()))
-              matches.push(values[i]);
-          renderItem(matches, searchTerm);
-        }
-      },
-      []
-    ),
-  };
-
   const onUploadPDF = async () => {
     setUploading(true)
+    if (!selectedPDF) return console.log("Must select a file.");
+
     let formData = new FormData();
     formData.append("file", selectedPDF);
 
@@ -317,9 +248,6 @@ const Documents = () => {
                   theme="snow"
                   value={value}
                   onChange={setValue}
-                  modules={{
-                    mention: mentionModule,
-                  }}
                 />
               </>
           }

@@ -14,6 +14,7 @@ type Documents = {
   pageContent: string
   metadata?: {
     document_id: number,
+    blobType: string,
     loc?: {
       pageNumber: number
     }
@@ -24,13 +25,6 @@ type Documents = {
 
 export default function Home() {
   const router = useRouter();
-
-  // useEffect(() => {
-  //   axios.get('/api/server-client')
-  //     .then((c) => {
-  //       console.log(c);
-  //     })
-  // }, [])
 
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
@@ -88,7 +82,7 @@ export default function Home() {
                 onChange={(e) => setInput(e.target.value)}
               />
               <button
-                className={`${inflight && "cursor-not-allowed"} flex-none inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal`}
+                className={`${inflight && "cursor-not-allowed"} flex-none inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white`}
                 type="submit"
               >
                 {inflight ? <div className="flex items-center"><Loader className="mr-2" /> Processing...</div> : "Submit"}
@@ -103,17 +97,24 @@ export default function Home() {
             <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
             {
               sourceDocuments.map((sourceDoc, i) => {
-                if (sourceDoc?.metadata?.document_id) return (
-                  <div key={sourceDoc?.metadata?.document_id}>
-                    <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">
-                      <Link href={{ pathname: `/documents/`, query: { id: sourceDoc?.metadata?.document_id, pageNumber: sourceDoc?.metadata?.loc?.pageNumber } }}>{
-                        sourceDoc?.pageContent.length > 20 ?
-                          `${sourceDoc?.pageContent.substring(0, 20)}...`
-                          : sourceDoc?.pageContent
-                      }</Link>
+                const documentId = sourceDoc?.metadata?.document_id;
+                if (documentId) {
+                  const pageNumber = sourceDoc?.metadata?.loc?.pageNumber;
+                  const sourceType = sourceDoc?.metadata?.blobType;
+                  const content = sourceDoc?.pageContent;
+                  return (
+                    <div key={`${documentId}-${i}`}>
+                      <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">
+                        <Link href={{ pathname: `/documents/`, query: { id: documentId, pageNumber: pageNumber } }}>
+                          {`${sourceType === "application/pdf" ? `PDF Page #${pageNumber}` : "Text"}: 
+                            ${content.length > 20 ?
+                              `${content.substring(0, 20)}...`
+                              : content
+                            }`}</Link>
+                      </div>
                     </div>
-                  </div>
-                )
+                  )
+                }
               })
             }
             <span></span>

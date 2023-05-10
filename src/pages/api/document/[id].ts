@@ -16,6 +16,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     req, res
   })
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session)
+    return res.status(401).json({
+      error: 'not_authenticated',
+      description: 'The user does not have an active session or is not authenticated',
+    })
+
   const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY })
   const openAi = new OpenAIApi(configuration);
   const { id } = req.query
@@ -57,28 +67,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (data) res.status(200).json(data)
         if (error || errorChunks) res.status(500).json(error?.message || errorChunks?.message)
       } catch (error) {
-        res.status(error?.code || 500).json(error.message)
+        if (error instanceof Error) res.status(500).json(error.message)
       }
 
       return;
     }
     case "DELETE": {
-      const { error: errorChunks } = await supabase
-        .from('chunks')
-        .delete()
-        .eq('document_id', id)
-        .select()
-
       const { data, error } = await supabase
         .from('documents')
         .delete()
         .eq('id', id)
         .select()
 
-      if (error) res.status(500).json(error?.message || errorChunks?.message)
+      if (error) res.status(500).json(error?.message)
       if (data) res.status(200).json(data)
-
-
       return;
     }
     default: res.status(200).json("Document API")
