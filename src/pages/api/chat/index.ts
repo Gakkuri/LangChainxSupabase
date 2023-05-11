@@ -7,13 +7,10 @@ import { SupabaseHybridSearch } from "langchain/retrievers/supabase";
 import { OpenAI } from "langchain/llms/openai";
 import { ConversationalRetrievalQAChain } from "langchain/chains";
 
+import { CallbackManager } from "langchain/callbacks";
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // const supabase = createClient(
-  //   process.env.SUPABASE_URL ?? '',
-  //   process.env.SUPABASE_ANON_KEY ?? ''
-  // );
-
   const supabase = createServerSupabaseClient({
     req, res
   })
@@ -28,9 +25,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       description: 'The user does not have an active session or is not authenticated',
     })
 
-  // const { data, error } = await supabase.functions.invoke("vector", {
-  //   body: { query: input, user_id: userId },
-  // });
   try {
     const { input } = req.body;
     const formattedInput = input.replace(/\n/g, ' ');
@@ -46,19 +40,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     /* Initialize the LLM to use to answer the question */
+
     const model = new OpenAI({
-      modelName: "gpt-3.5-turbo"
+      modelName: "gpt-3.5-turbo",
     });
 
     /* Create the chain */
     const chain = ConversationalRetrievalQAChain.fromLLM(
-      model, retriever, { returnSourceDocuments: true }
+      model, retriever, {
+      returnSourceDocuments: true
+    }
     );
+
     /* Ask it a question */
     const question = formattedInput;
     const data = await chain.call({ question, chat_history: [] });
+    if (data) res.status(200).json(data);
 
-    if (data) res.status(200).json(data)
   } catch (error) {
     console.log(error);
     if (error instanceof Error) {

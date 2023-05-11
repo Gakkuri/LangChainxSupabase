@@ -164,20 +164,20 @@ const Documents = () => {
   }
 
   return (
-    <div className="m-8">
+    <div>
       <Header />
 
       <div className="flex flex-1 items-stretch">
-        <div className="w-120 border-r-2 border-slate-400 p-4">
+        <div className="w-120 p-4">
           <button
-            className={`${!selectedPDF && "cursor-not-allowed"} bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
+            className={`${!selectedPDF && "cursor-not-allowed"} bg-[#8ebb47] hover:bg-[#65bb44] text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
             onClick={() => goToDocument(null)}
           >
             {`Create New Document`}
           </button>
           <ul className="mt-3">
             <li
-              className={`border-l-2 ml-2 my-1 hover:border-cyan-300 hover:text-cyan-300 ${!selectedDocument?.id && "border-cyan-500 text-cyan-500"
+              className={`ml-2 my-1 hover:bg-[#c2d8b9] ${!selectedDocument?.id && " bg-[#e4f0d0]"
                 }`}
             ></li>
             {loadingDocs ?
@@ -192,13 +192,13 @@ const Documents = () => {
                 return (
                   <li
                     key={d.id}
-                    className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${selectedDocument?.id === d.id &&
-                      "border-cyan-500 text-cyan-500"
+                    onClick={() => goToDocument(d.id)}
+                    className={`pl-2 py-1 cursor-pointer hover:bg-[#c2d8b9] ${selectedDocument?.id === d.id &&
+                      "bg-[#e4f0d0]"
                       }`}
                   >
                     <a
-                      onClick={() => goToDocument(d.id)}
-                      className="whitespace-normal cursor-pointer"
+                      className="whitespace-normal"
                     >
                       {title}
                     </a>
@@ -225,7 +225,7 @@ const Documents = () => {
                         <input ref={fileInput} onChange={(e) => setSelectedPDF(e?.target?.files?.[0])} accept='application/pdf' type='file' />
                         <button
                           disabled={!selectedPDF || uploading}
-                          className={`${(!selectedPDF || uploading) && "cursor-not-allowed"} ml-1 block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
+                          className={`${(!selectedPDF || uploading) && "cursor-not-allowed"} ml-1 block rounded bg-[#738290] px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
                           onClick={onUploadPDF}
                         >
                           <span className="flex items-center">
@@ -288,7 +288,7 @@ const Documents = () => {
             {
               selectedDocument?.file_type !== "PDF" && (
                 <button
-                  className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
+                  className={`mt-2 float-right inline-block rounded bg-[#738290] px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
                     }`}
                   disabled={loading}
                   onClick={onAddDocument}

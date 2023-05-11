@@ -13,6 +13,7 @@
 html,
 body {
   height: 100%;
+  background-color: #FFFCF7;
 }
 
 * {
@@ -30,8 +31,9 @@ a {
   min-height: 18em;
 }
 
+/* 
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
-}
+} */

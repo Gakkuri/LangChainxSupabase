@@ -52,13 +52,8 @@ apiRoute.get(async (req, res) => {
   else res.status(200).json(data.signedUrl)
 })
 
-
 apiRoute.post(async (req, res) => {
   const embeddings = new OpenAIEmbeddings();
-  // const supabase = createClient(
-  //   process.env.SUPABASE_URL ?? '',
-  //   process.env.SUPABASE_ANON_KEY ?? ''
-  // );
   const supabase = createServerSupabaseClient({
     req, res
   })

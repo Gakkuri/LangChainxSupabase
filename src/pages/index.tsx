@@ -28,6 +28,7 @@ export default function Home() {
 
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
+  const [question, setQuestion] = useState("");
   const [sourceDocuments, setSourceDocuments] = useState<Array<Documents>>([]);
   const [inflight, setInflight] = useState(false);
 
@@ -40,13 +41,16 @@ export default function Home() {
 
       // Reset output
       setInflight(true);
+      setQuestion("");
       setOutput("");
 
       try {
         const { data } = await axios.post('/api/chat', { input });
         setOutput(data.text);
+        setQuestion(input);
         setSourceDocuments(data.sourceDocuments)
         setInput("");
+
 
       } catch (error) {
         console.error(error);
@@ -65,7 +69,7 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className="h-screen m-8">
+      <main className="h-screen">
         <Header />
 
         <div className="m-4">
@@ -77,12 +81,12 @@ export default function Home() {
               <input
                 type="text"
                 placeholder="Ask..."
-                className='p-2 grow'
+                className='p-2 grow border-2 border-[#738290]'
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
               />
               <button
-                className={`${inflight && "cursor-not-allowed"} flex-none inline-block bg-slate-600 px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white`}
+                className={`${inflight && "cursor-not-allowed"} flex-none inline-block bg-[#738290] px-6 pb-2 pt-2 text-xs font-medium uppercase leading-normal text-white`}
                 type="submit"
               >
                 {inflight ? <div className="flex items-center"><Loader className="mr-2" /> Processing...</div> : "Submit"}
@@ -90,13 +94,14 @@ export default function Home() {
             </div>
           </form>
           <div>
-            <div>
+            <div className="flex flex-col">
+              <span>Question: {question}</span>
               <span className="mb-4">Response: {output}</span>
             </div>
 
             <h2 className="font-bold text-medium mt-6">Source Documents:</h2>
             {
-              sourceDocuments.map((sourceDoc, i) => {
+              sourceDocuments?.map((sourceDoc, i) => {
                 const documentId = sourceDoc?.metadata?.document_id;
                 if (documentId) {
                   const pageNumber = sourceDoc?.metadata?.loc?.pageNumber;
@@ -104,7 +109,7 @@ export default function Home() {
                   const content = sourceDoc?.pageContent;
                   return (
                     <div key={`${documentId}-${i}`}>
-                      <div className="inline-block rounded px-4 py-1 my-1 bg-slate-600 hover:bg-slate-400 text-xs font-medium">
+                      <div className="inline-block rounded px-4 py-1 my-1 bg-[#e4f0d0] hover:bg-[#c2d8b9] text-xs font-medium">
                         <Link href={{ pathname: `/documents/`, query: { id: documentId, pageNumber: pageNumber } }}>
                           {`${sourceType === "application/pdf" ? `PDF Page #${pageNumber}` : "Text"}: 
                             ${content.length > 20 ?
@@ -119,7 +124,6 @@ export default function Home() {
             }
             <span></span>
           </div>
-
         </div>
       </main >
     </>
