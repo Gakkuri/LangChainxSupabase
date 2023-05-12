@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import Loader from '@/components/Loader';
 
 import "react-quill/dist/quill.snow.css";
+import UploadPDF from "@/components/UploadPDF";
 
 const PdfViewer = dynamic(import("../components/PdfViewer"), { ssr: false });
 const ReactQuill = dynamic(import("react-quill"), { ssr: false });
@@ -184,7 +185,6 @@ const Documents = () => {
               <div className="flex flex-col items-center">
                 <Loader className="fill-white" /> Loading Documents
               </div>
-
               :
               documents.map((d) => {
                 let content_lines = d.content.split("\n");
@@ -219,27 +219,10 @@ const Documents = () => {
               <>
                 {
                   !selectedDocument && (
-                    <div className="text-center">
-                      <label className="block mb-4 text-bold">Upload PDF</label>
-                      <div className='mb-4 flex flex-row justify-center'>
-                        <input ref={fileInput} onChange={(e) => setSelectedPDF(e?.target?.files?.[0])} accept='application/pdf' type='file' />
-                        <button
-                          disabled={!selectedPDF || uploading}
-                          className={`${(!selectedPDF || uploading) && "cursor-not-allowed"} ml-1 block rounded bg-[#738290] px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
-                          onClick={onUploadPDF}
-                        >
-                          <span className="flex items-center">
-                            {
-                              uploading ? <>
-                                <Loader className="mr-2" /> Uploading...
-                              </>
-                                : "Upload PDF"
-                            }
-                          </span>
-                        </button>
-                      </div>
-                      <span className="block text-bold text-xl mb-4">-- OR --</span>
-                      <label className="block mb-4 text-bold text-center">Create Your Own Document</label>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-bold text-center">Create Your Own Document</label>
+                      <span className="text-bold"> -- OR -- </span>
+                      <UploadPDF setDocument={setDocuments} />
                     </div>
                   )
                 }

@@ -20,6 +20,9 @@ const Server = async (req: NextApiRequest, res: NextApiResponse) => {
     case "POST": {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: process.env.NEXT_PUBLIC_REDIRECT_LINK
+        }
       })
 
       if (data) res.status(200).json(data)

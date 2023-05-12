@@ -1,22 +1,32 @@
-import React, { useEffect } from 'react';
-import { useSession } from "@supabase/auth-helpers-react";
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import clsx from 'clsx';
+import { useSession } from "@supabase/auth-helpers-react";
 import Router, { useRouter } from 'next/router';
 import Link from 'next/link';
-
+import LoginDialog from '../LoginDialog';
 
 type Props = {
   className?: string
+  type?: string
 }
 
 const Header = (props: Props) => {
   const router = useRouter();
-  const session = useSession();
+  const remoteSession = useSession();
+
+  const [session, setSession] = useState(remoteSession);
+
+  useEffect(() => {
+    if (remoteSession) setSession(remoteSession);
+  }, [remoteSession])
+
 
   const onLogout = async () => {
     try {
       const data = await axios.post('/api/server-client/logout');
-      Router.reload();
+      router.push('/');
+      setSession(null);
     } catch (err) {
       console.error(err)
     }
@@ -25,17 +35,22 @@ const Header = (props: Props) => {
   return (
     <div className='flex items-center justify-between p-4 bg-[#A1B5D8]'>
       <div>
-        <h1 className='text-xl font-bold'>Note AI</h1>
+        <h1
+          className='text-xl font-bold cursor-pointer'
+          onClick={() => router.push('/')}
+        >
+          Note AI
+        </h1>
       </div>
-      <div className="">
+      <div>
         <Link
-          className='mr-6'
-          href="/"
+          className={clsx(!session && "hidden", 'mr-6')}
+          href="/chat"
         >
           Chat
         </Link>
         <Link
-          className='mr-6'
+          className={clsx(!session && "hidden", 'mr-6')}
           href='/documents'
         >
           Documents
@@ -50,13 +65,8 @@ const Header = (props: Props) => {
                 Logout
               </a>
             </>
-
             :
-            <a
-              className='cursor-pointer'
-              onClick={() => router.push("/login")}>
-              Login
-            </a>
+            <LoginDialog />
         }
       </div>
     </div>

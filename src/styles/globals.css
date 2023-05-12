@@ -29,7 +29,13 @@ a {
 
 .quill .ql-editor {
   min-height: 18em;
+  background-color: white;
 }
+
+.quill {
+  background-color: lightgray;
+}
+
 
 /* 
 @media (prefers-color-scheme: dark) {
