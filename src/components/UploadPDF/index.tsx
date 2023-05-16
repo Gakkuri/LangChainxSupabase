@@ -51,34 +51,7 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
         })
 
       const { data: { docs } } = await axios.post("/api/upload-pdf", { url: dataUpload?.path });
-      const { data: { embeddings } } = await axios.post("/api/upload-pdf/embed", { docs });
-
-      const insertDocument = {
-        user_id: session?.user.id,
-        content: selectedFile.name,
-        file_type: "PDF",
-        file_path: dataUpload?.path
-      }
-
-      const { data, error } = await supabaseClient
-        .from('documents')
-        .insert(insertDocument)
-        .select();
-
-      const { error: errorChunk } = await supabaseClient
-        .from('chunks')
-        .insert(docs.map((doc: Documents, i: number) => ({
-          user_id: session?.user.id,
-          content: (doc.pageContent || "").replace(/\u0000/g, ''),
-          embedding: embeddings[i],
-          document_id: data?.[0].id,
-          metadata: {
-            ...doc.metadata,
-            document_id: data?.[0].id,
-          }
-        })).filter((doc: Document) => !!doc))
-
-      if (error || errorChunk) throw error || errorChunk;
+      const { data } = await axios.post("/api/upload-pdf/embed", { docs, fileName: selectedFile.name, filePath: dataUpload?.path });
 
       setSelectedFile(undefined);
       props.setDocument((documents: Documents[]) => {

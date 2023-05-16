@@ -14,7 +14,7 @@ type Documents = {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { docs } = req.body;
+  const { docs, fileName, filePath } = req.body;
 
   const supabase = createServerSupabaseClient({
     req, res
@@ -33,5 +33,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const embeddings = new OpenAIEmbeddings();
   const allEmbeddings = await embeddings.embedDocuments(docs.map((doc: Documents) => (doc.pageContent || "").replace(/\u0000/g, '')));
 
-  res.status(200).json({ embeddings: allEmbeddings })
+  const insertDocument = {
+    user_id: session?.user.id,
+    content: fileName,
+    file_type: "PDF",
+    file_path: filePath
+  }
+
+  const { data, error } = await supabase
+    .from('documents')
+    .insert(insertDocument)
+    .select();
+
+  const { error: errorChunk } = await supabase
+    .from('chunks')
+    .insert(docs.map((doc: Documents, i: number) => ({
+      user_id: session?.user.id,
+      content: (doc.pageContent || "").replace(/\u0000/g, ''),
+      embedding: allEmbeddings[i],
+      document_id: data?.[0].id,
+      metadata: {
+        ...doc.metadata,
+        document_id: data?.[0].id,
+      }
+    })).filter((doc: Document) => !!doc))
+
+  if (error || errorChunk) return res.status(500).json(error || errorChunk);
+
+  res.status(200).json(data)
 }
