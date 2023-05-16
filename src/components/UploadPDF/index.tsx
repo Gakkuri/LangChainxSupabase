@@ -5,7 +5,8 @@ import clsx from 'clsx';
 import axios, { AxiosRequestConfig } from 'axios';
 import Button from '../shared/Button';
 import Loader from '../Loader';
-import Documents from '@/pages/documents';
+
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
 type Documents = {
   id: number;
@@ -25,11 +26,39 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
   const [selectedFile, setSelectedFile] = useState<File | null>();
   const [uploading, setUploading] = useState(false);
 
+  const [supabaseClient] = useState(() => createBrowserSupabaseClient());
+
   console.log(selectedFile)
 
   const onUploadPDF = async () => {
     setUploading(true)
     if (!selectedFile) return console.log("Must select a file.");
+
+    console.log(selectedFile)
+
+    try {
+      const { data: dataUpload, error } = await supabaseClient
+        .storage
+        .from('pdf_documents')
+        .upload(`public/${selectedFile.name}`, selectedFile, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: selectedFile.type
+        })
+
+      console.log(dataUpload)
+
+      const { data } = await axios.post("/api/upload-pdf", { url: dataUpload?.path, fileName: selectedFile.name });
+
+      console.log(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+
+
+    return;
 
     let formData = new FormData();
     formData.append("file", selectedFile);

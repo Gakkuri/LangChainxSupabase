@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from 'next/router';
 import axios, { AxiosRequestConfig } from 'axios';
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
+
 import Header from '@/components/Header';
 import Loader from '@/components/Loader';
 
@@ -24,6 +26,8 @@ const Documents = () => {
   const router = useRouter();
 
   const fileInput = useRef({ value: "" });
+
+  const [supabase] = useState(() => createBrowserSupabaseClient());
 
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -48,9 +52,10 @@ const Documents = () => {
       );
       if (foundDoc) {
         if (foundDoc?.file_type === "PDF") {
-          axios.get("/api/upload-pdf", { params: { path: foundDoc?.file_path } }).then(({ data }) => {
-            setSelectedDocument({ ...foundDoc, url: data });
-          });
+          getPDFSignedUrl(foundDoc.file_path)
+            .then((data) => {
+              setSelectedDocument({ ...foundDoc, url: data });
+            }).catch(console.error)
         } else {
           setSelectedDocument(foundDoc);
           setValue(foundDoc?.html_string || "");
@@ -58,6 +63,16 @@ const Documents = () => {
       }
     }
   }, [router.query, documents]);
+
+  const getPDFSignedUrl = async (path: string | undefined) => {
+    const { data, error } = await supabase
+      .storage
+      .from('pdf_documents')
+      .createSignedUrl(path, 300)
+
+    if (error) throw error;
+    return data.signedUrl;
+  }
 
   const goToDocument = (id: number | null) => {
     if (!id) {
