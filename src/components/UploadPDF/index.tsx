@@ -2,7 +2,6 @@ import React, { useState, ComponentPropsWithoutRef } from 'react'
 import { TrashIcon } from '@radix-ui/react-icons'
 import * as Dialog from "@radix-ui/react-alert-dialog";
 import { useSession } from "@supabase/auth-helpers-react";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
 import clsx from 'clsx';
 import axios, { AxiosRequestConfig } from 'axios';
@@ -28,9 +27,6 @@ type Props = {
 
 const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
   const session = useSession();
-  const embeddings = new OpenAIEmbeddings({
-    openAIApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  });
 
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>();
@@ -42,7 +38,7 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
     setUploading(true)
     if (!selectedFile) return console.log("Must select a file.");
 
-    console.log(selectedFile)
+    console.log(selectedFile.size / (1024 * 1024))
 
     try {
       const { data: dataUpload, error: errorUpload } = await supabaseClient
@@ -55,8 +51,7 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
         })
 
       const { data: { docs } } = await axios.post("/api/upload-pdf", { url: dataUpload?.path });
-
-      const allEmbeddings = await embeddings.embedDocuments(docs.map((doc: Documents) => (doc.pageContent || "").replace(/\u0000/g, '')));
+      const { data: { embeddings } } = await axios.post("/api/upload-pdf/embed", { docs });
 
       const insertDocument = {
         user_id: session?.user.id,
@@ -75,7 +70,7 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
         .insert(docs.map((doc: Documents, i: number) => ({
           user_id: session?.user.id,
           content: (doc.pageContent || "").replace(/\u0000/g, ''),
-          embedding: allEmbeddings[i],
+          embedding: embeddings[i],
           document_id: data?.[0].id,
           metadata: {
             ...doc.metadata,
