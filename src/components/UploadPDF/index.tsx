@@ -1,6 +1,7 @@
 import React, { useState, ComponentPropsWithoutRef } from 'react'
 import { TrashIcon } from '@radix-ui/react-icons'
 import * as Dialog from "@radix-ui/react-alert-dialog";
+import { useSession } from "@supabase/auth-helpers-react";
 import clsx from 'clsx';
 import axios, { AxiosRequestConfig } from 'axios';
 import Button from '../shared/Button';
@@ -15,6 +16,8 @@ type Documents = {
   html_string?: string;
   file_path?: string;
   url?: string;
+  pageContent?: string;
+  metadata?: {};
 }
 
 type Props = {
@@ -22,13 +25,13 @@ type Props = {
 }
 
 const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
+  const session = useSession();
+
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>();
   const [uploading, setUploading] = useState(false);
 
   const [supabaseClient] = useState(() => createBrowserSupabaseClient());
-
-  console.log(selectedFile)
 
   const onUploadPDF = async () => {
     setUploading(true)
@@ -37,7 +40,7 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
     console.log(selectedFile)
 
     try {
-      const { data: dataUpload, error } = await supabaseClient
+      const { data: dataUpload, error: errorUpload } = await supabaseClient
         .storage
         .from('pdf_documents')
         .upload(`public/${selectedFile.name}`, selectedFile, {
@@ -46,11 +49,42 @@ const UploadPDF = (props: ComponentPropsWithoutRef<'button'> & Props) => {
           contentType: selectedFile.type
         })
 
-      console.log(dataUpload)
+      const { data: { docs, embeddings } } = await axios.post("/api/upload-pdf", { url: dataUpload?.path });
 
-      const { data } = await axios.post("/api/upload-pdf", { url: dataUpload?.path, fileName: selectedFile.name });
+      const insertDocument = {
+        user_id: session?.user.id,
+        content: selectedFile.name,
+        file_type: "PDF",
+        file_path: dataUpload?.path
+      }
 
-      console.log(data);
+      const { data, error } = await supabaseClient
+        .from('documents')
+        .insert(insertDocument)
+        .select();
+
+      const { error: errorChunk } = await supabaseClient
+        .from('chunks')
+        .insert(docs.map((doc: Documents, i: number) => ({
+          user_id: session?.user.id,
+          content: (doc.pageContent || "").replace(/\u0000/g, ''),
+          embedding: embeddings[i],
+          document_id: data?.[0].id,
+          metadata: {
+            ...doc.metadata,
+            document_id: data?.[0].id,
+          }
+        })).filter((doc: Document) => !!doc))
+
+      if (error || errorChunk) throw error || errorChunk;
+
+      setSelectedFile(undefined);
+      props.setDocument((documents: Documents[]) => {
+        const newDocs = [...documents, data[0]] as Array<Documents>
+        return newDocs;
+      });
+
+      setIsOpen(false);
     } catch (err) {
       console.error(err);
     } finally {

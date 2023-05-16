@@ -1,9 +1,9 @@
 import { serve } from "http/server.ts";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { createClient } from "@supabase/supabase-js";
-import { SupabaseHybridSearch } from "langchain/retrievers/supabase";
-import { OpenAI } from "langchain/llms/openai";
-import { ConversationalRetrievalQAChain } from "langchain/chains";
+import { SupabaseVectorStore } from "langchain/vectorstores/supabase";
+import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // First, follow set-up instructions at
@@ -14,36 +14,54 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   try {
-    const { query } = await req.json();
-    // This is needed if you're planning to invoke your function from a browser.
-    const input = query.replace(/\n/g, ' ')
-    const client = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
     const embeddings = new OpenAIEmbeddings();
+    const { url, fileName, userId } = req.body;
 
-    const retriever = new SupabaseHybridSearch(embeddings, {
-      client,
-      similarityK: 2,
-      keywordK: 2,
-      tableName: "chunks",
-      similarityQueryName: "match_documents",
-      keywordQueryName: "kw_match_documents",
-    });
-
-    /* Initialize the LLM to use to answer the question */
-    const model = new OpenAI({});
-
-    /* Create the chain */
-    const chain = ConversationalRetrievalQAChain.fromLLM(
-      model, retriever, { returnSourceDocuments: true }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-    /* Ask it a question */
-    const question = input;
-    const res = await chain.call({ question, chat_history: [] });
 
-    return new Response(JSON.stringify(res), {
+
+    const { data: rawFile, error: errorDownload } = await supabase
+      .storage
+      .from('pdf_documents')
+      .download(url)
+
+    const splitter = new RecursiveCharacterTextSplitter();
+    const loader = new PDFLoader(rawFile || "");
+    const docs = await loader.loadAndSplit(splitter);
+
+    const insertDocument = {
+      user_id: userId,
+      content: fileName,
+      file_type: "PDF",
+      file_path: url
+    }
+
+    const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent.replace(/\u0000/g, '')));
+
+    const { data, error } = await supabase
+      .from('documents')
+      .insert(insertDocument)
+      .select();
+
+    const { error: errorChunk } = await supabase
+      .from('chunks')
+      .insert(docs.map((doc, i) => ({
+        user_id: userId,
+        content: doc.pageContent.replace(/\u0000/g, ''),
+        embedding: allEmbeddings[i],
+        document_id: data?.[0].id,
+        metadata: {
+          ...doc.metadata,
+          document_id: data?.[0].id,
+        }
+      })).filter(doc => !!doc))
+
+    if (error || errorChunk) throw error || errorChunk
+
+    return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
