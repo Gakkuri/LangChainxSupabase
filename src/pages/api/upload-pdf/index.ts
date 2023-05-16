@@ -32,7 +32,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // console.log(data);
   // res.status(200).json(data)
 
-  const embeddings = new OpenAIEmbeddings();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -52,7 +51,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const loader = new PDFLoader(rawFile || "");
   const docs = await loader.loadAndSplit(splitter);
 
-  const allEmbeddings = await embeddings.embedDocuments(docs.map((doc) => doc.pageContent.replace(/\u0000/g, '')));
-
-  res.status(200).json({ docs, embeddings: allEmbeddings })
+  res.status(200).json({ docs })
 }
