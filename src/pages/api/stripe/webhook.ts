@@ -1,13 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { buffer } from "micro";
+// import { buffer } from "micro";
 import { createClient } from "@supabase/supabase-js";
+// import Stripe from "stripe";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  //   apiVersion: "2022-11-15",
+  // });
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
   if (req.method === "POST") {
-    const buf = await buffer(req);
     const sig = req.headers["stripe-signature"];
 
     let event;
@@ -17,9 +20,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     );
 
-    console.log(sig);
-
     try {
+      const buf = await buffer(req);
+      console.log(sig);
       event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
       console.log(event);
     } catch (err) {
@@ -110,6 +113,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     res.setHeader("Allow", "POST");
     res.status(405).end("Method Not Allowed");
   }
+};
+
+const buffer = (req: NextApiRequest) => {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    req.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+
+    req.on("error", reject);
+  });
 };
 
 export const config = {
