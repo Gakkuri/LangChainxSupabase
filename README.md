@@ -143,7 +143,7 @@ Then, link your project:
 npx env-cmd -f ./supabase/.env npx supabase link --project-ref <project-ref>
 ```
 
-Optionally, if you're also using the Supabase Vector Store from LangChain, you'll need to push the schema to the database:
+You'll need to push the schema to the database:
 
 ```bash
 supabase db push
