@@ -1,3 +1,5 @@
+/* eslint-disable react/display-name */
+
 import React, { useEffect, useState, useRef } from "react";
 import { createBrowserSupabaseClient } from "@supabase/auth-helpers-nextjs";
 import dynamic from "next/dynamic";
@@ -12,13 +14,16 @@ import UploadPDF from "@/components/UploadPDF";
 import { useSession } from "@supabase/auth-helpers-react";
 import Button from "@/components/shared/Button";
 
-
-const PdfViewer = dynamic(() => import("../components/PdfViewer"), { ssr: false });
+const PdfViewer = dynamic(() => import("../components/PdfViewer"), {
+  ssr: false,
+});
 const ReactQuill = dynamic(
   async () => {
     const { default: RQ } = await import("react-quill");
     return ({ forwardedRef, ...props }) => <RQ ref={forwardedRef} {...props} />;
-  }, { ssr: false });
+  },
+  { ssr: false }
+);
 // import ReactQuill, { Quill } from 'react-quill';
 
 const FREE_ACCOUNT_MAX_DOCUMENTS = 10;
@@ -113,17 +118,17 @@ function ViewDocumentContainer(props: {
 }) {
   const router = useRouter();
   const quillRef = useRef(); // Create a reference to store the Quill instance.
-  const [timeoutId, setTimeoutId] = useState<any>(null); 
+  const [timeoutId, setTimeoutId] = useState<any>(null);
 
   const handleChange = (content: string) => {
-    if(!quillRef.current) return;
+    if (!quillRef.current) return;
     const quillInstance = quillRef.current.getEditor();
 
     // Clear any existing timeouts to prevent overlapping save calls.
     if (timeoutId) {
       clearTimeout(timeoutId);
-    }    
-    
+    }
+
     // Set new Data Value
     props.setValue(content);
 
@@ -132,21 +137,20 @@ function ViewDocumentContainer(props: {
       // Get cursor location
       const range = quillInstance.getSelection();
       // Disable the editor.
-      quillInstance.enable(false); 
-      
+      quillInstance.enable(false);
+
       // Save your data here.
       props.setLoadingAutoSave(true);
       await props.updateDocument(props.currentDocument, content);
 
       // Enable the editor and put cursor to the right place after saving.
-      quillInstance.enable(true); 
-      quillInstance.setSelection(range)
-      
+      quillInstance.enable(true);
+      quillInstance.setSelection(range);
     }, 2000); // Set delay of 2 seconds.
 
     // Save the timeout ID for later so we can clear it.
     setTimeoutId(newTimeoutId);
-  }
+  };
 
   const viewDocumentByType = (currentDocument?: Document) => {
     switch (currentDocument?.file_type) {
@@ -170,8 +174,9 @@ function ViewDocumentContainer(props: {
             {/* Adding Disabled Overlay */}
             <div
               className={
-                !props.loadingAutoSave ? "hidden"
-                : "flex justify-center items-center absolute top-0 left-0 w-full h-full bg-gray-900 opacity-70 cursor-not-allowed z-1"
+                !props.loadingAutoSave
+                  ? "hidden"
+                  : "flex justify-center items-center absolute top-0 left-0 w-full h-full bg-gray-900 opacity-70 cursor-not-allowed z-1"
               }
             >
               <Loader className="invert" w={40} h={40} />
@@ -179,7 +184,7 @@ function ViewDocumentContainer(props: {
 
             {/* Text Editor */}
             <ReactQuill
-              forwardedRef={el => quillRef.current = el}
+              forwardedRef={(el) => (quillRef.current = el)}
               bounds=".quill"
               theme="snow"
               value={props.value}
