@@ -1,83 +1,118 @@
-import { createClient } from "@supabase/supabase-js";
-import { Configuration, OpenAIApi } from 'openai';
-import { convert } from 'html-to-text';
+// import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
+import { Configuration, OpenAIApi } from "openai";
+import { convert } from "html-to-text";
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const requestMethod = req.method;
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL ?? '',
-    process.env.SUPABASE_ANON_KEY ?? ''
-  );
+  // const supabase = createClient(
+  //   process.env.SUPABASE_URL ?? '',
+  //   process.env.SUPABASE_ANON_KEY ?? ''
+  // );
 
-  const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY })
+  const supabase = createServerSupabaseClient({
+    req,
+    res,
+  });
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session)
+    return res.status(401).json({
+      error: "not_authenticated",
+      description:
+        "The user does not have an active session or is not authenticated",
+    });
+
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
   const openAi = new OpenAIApi(configuration);
-  const { id } = req.query
+  const userId = session.user.id;
+  const { id } = req.query;
 
   switch (requestMethod) {
     case "PUT": {
       const { value } = req.body;
       try {
-        const input = value.replace(/\n/g, ' ')
+        const embeddings = new OpenAIEmbeddings();
+        const splitter = new RecursiveCharacterTextSplitter();
 
-        const embeddingResponse = await openAi.createEmbedding({
-          model: 'text-embedding-ada-002',
-          input,
-        })
+        const input = value.replace(/\n/g, " ");
+        const docs = await splitter.createDocuments([convert(input)]);
+        const embeddingResponse = await embeddings.embedDocuments(
+          docs.map((doc) => doc.pageContent.replace(/[\r\n]+/g, " "))
+        );
 
         const updateDocument = {
           content: convert(input),
           html_string: value,
-          file_type: "RICH_TEXT_EDITOR"
-        }
+          file_type: "RICH_TEXT_EDITOR",
+        };
 
-        const updateChunks = {
-          content: convert(input),
-          embedding: embeddingResponse.data.data[0].embedding,
-        }
-
-        const { error: errorChunks } = await supabase
-          .from('chunks')
-          .update(updateChunks)
-          .eq('document_id', id)
+        //Remove Existing Chunks
+        const { error: errorDelete } = await supabase
+          .from("chunks")
+          .delete()
+          .eq("document_id", id)
           .select();
+
+        //Add new splitted chunks
+        const { error: errorChunks } = await supabase.from("chunks").insert(
+          docs
+            .map((doc, i) => ({
+              user_id: userId,
+              content: (doc.pageContent || "").replace(/\u0000/g, ""),
+              embedding: embeddingResponse[i],
+              document_id: id,
+              metadata: {
+                ...doc.metadata,
+                document_id: id,
+              },
+            }))
+            .filter((doc) => !!doc)
+        );
 
         const { data, error } = await supabase
-          .from('documents')
+          .from("documents")
           .update(updateDocument)
-          .eq('id', id)
+          .eq("id", id)
           .select();
 
-        if (data) res.status(200).json(data)
-        if (error || errorChunks) res.status(500).json(error?.message || errorChunks?.message)
+        if (data) res.status(200).json(data);
+        else if (error || errorChunks || errorDelete)
+          res
+            .status(500)
+            .json(
+              error?.message || errorChunks?.message || errorDelete?.message
+            );
       } catch (error) {
-        res.status(error?.code || 500).json(error.message)
+        if (error instanceof Error) res.status(500).json(error.message);
       }
 
       return;
     }
     case "DELETE": {
-      const { error: errorChunks } = await supabase
-        .from('chunks')
-        .delete()
-        .eq('document_id', id)
-        .select()
-
       const { data, error } = await supabase
-        .from('documents')
+        .from("documents")
         .delete()
-        .eq('id', id)
-        .select()
+        .eq("id", id)
+        .select();
 
-      if (error) res.status(500).json(error?.message || errorChunks?.message)
-      if (data) res.status(200).json(data)
-
-
+      if (error) res.status(500).json(error?.message);
+      if (data) res.status(200).json(data);
       return;
     }
-    default: res.status(200).json("Document API")
+    default:
+      res.status(200).json("Document API");
   }
-
-
-
 }

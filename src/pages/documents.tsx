@@ -1,134 +1,452 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { createBrowserSupabaseClient } from "@supabase/auth-helpers-nextjs";
 import dynamic from "next/dynamic";
-import { useRouter } from 'next/router';
-import axios, { AxiosRequestConfig } from 'axios';
-import Header from '@/components/Header';
-import Loader from '@/components/Loader';
+import { useRouter } from "next/router";
+import axios, { AxiosRequestConfig } from "axios";
+import clsx from "clsx";
+import Header from "@/components/Header";
+import Loader from "@/components/Loader";
 
 import "react-quill/dist/quill.snow.css";
-import "quill-mention/dist/quill.mention.css";
+import UploadPDF from "@/components/UploadPDF";
+import { useSession } from "@supabase/auth-helpers-react";
+import Button from "@/components/shared/Button";
 
-const PdfViewer = dynamic(import("../components/PdfViewer"), { ssr: false });
-const QuillMention = dynamic(import("quill-mention"), { ssr: false });
-const ReactQuill = dynamic(import("react-quill"), { ssr: false });
 
-type Documents = {
+const PdfViewer = dynamic(() => import("../components/PdfViewer"), { ssr: false });
+const ReactQuill = dynamic(
+  async () => {
+    const { default: RQ } = await import("react-quill");
+    return ({ forwardedRef, ...props }) => <RQ ref={forwardedRef} {...props} />;
+  }, { ssr: false });
+// import ReactQuill, { Quill } from 'react-quill';
+
+const FREE_ACCOUNT_MAX_DOCUMENTS = 10;
+
+type Document = {
   id: number;
   content: string;
   file_type: string;
   html_string?: string;
-  file_path?: string;
+  file_path: string;
   url?: string;
 };
 
-const atValues = [
-  { id: 1, value: "At Value 1" },
-  { id: 2, value: "At Value 2" },
-];
-const hashValues = [
-  { id: 3, value: "Hash Value 1" },
-  { id: 4, value: "Hash Value 2" },
-  { id: 5, value: "Story" },
-];
+function SaveButton(props: { saveAction: any; loading: boolean }) {
+  return (
+    <button
+      className={`mt-2 inline-block rounded bg-[#738290] px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${
+        props.loading && "cursor-not-allowed"
+      }`}
+      disabled={props.loading}
+      onClick={() => props.saveAction()}
+    >
+      <span className="flex items-center">
+        {props.loading ? (
+          <>
+            <Loader className="mr-2" /> Processing...
+          </>
+        ) : (
+          "Save"
+        )}
+      </span>
+    </button>
+  );
+}
+
+function LeftPane(props: {
+  currentDocument?: Document;
+  loadingDocs: boolean;
+  documents: Array<Document>;
+  goToDocument: any;
+}) {
+  return (
+    <div>
+      <button
+        className={`bg-[#8ebb47] hover:bg-[#65bb44] text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
+        onClick={() => props.goToDocument(null)}
+      >
+        {`Create Documents`}
+      </button>
+      <ul className="mt-3">
+        <li
+          className={`ml-2 my-1 hover:bg-[#c2d8b9] ${
+            !props.currentDocument?.id && " bg-[#e4f0d0]"
+          }`}
+        ></li>
+        {props.loadingDocs ? (
+          <div className="flex flex-col items-center">
+            <Loader className="fill-white" /> Loading Documents
+          </div>
+        ) : (
+          props.documents.map((d) => {
+            let content_lines = d.content.split("\n");
+            let title = content_lines[0];
+            return (
+              <li
+                key={d.id}
+                onClick={() => props.goToDocument(d.id)}
+                className={`pl-2 py-1 break-words cursor-pointer hover:bg-[#c2d8b9] ${
+                  props.currentDocument?.id === d.id && "bg-[#e4f0d0]"
+                }`}
+              >
+                <a className="whitespace-normal">{title}</a>
+              </li>
+            );
+          })
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function ViewDocumentContainer(props: {
+  currentDocument: Document;
+  loading: boolean;
+  value: any;
+  setValue: any;
+  confirmDelete: boolean;
+  onDeleteDocument: any;
+  loadingAutoSave: boolean;
+  setLoadingAutoSave: any;
+  updateDocument: any;
+}) {
+  const router = useRouter();
+  const quillRef = useRef(); // Create a reference to store the Quill instance.
+  const [timeoutId, setTimeoutId] = useState<any>(null); 
+
+  const handleChange = (content: string) => {
+    if(!quillRef.current) return;
+    const quillInstance = quillRef.current.getEditor();
+
+    // Clear any existing timeouts to prevent overlapping save calls.
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }    
+    
+    // Set new Data Value
+    props.setValue(content);
+
+    // Set a new timeout.
+    const newTimeoutId = setTimeout(async () => {
+      // Get cursor location
+      const range = quillInstance.getSelection();
+      // Disable the editor.
+      quillInstance.enable(false); 
+      
+      // Save your data here.
+      props.setLoadingAutoSave(true);
+      await props.updateDocument(props.currentDocument, content);
+
+      // Enable the editor and put cursor to the right place after saving.
+      quillInstance.enable(true); 
+      quillInstance.setSelection(range)
+      
+    }, 2000); // Set delay of 2 seconds.
+
+    // Save the timeout ID for later so we can clear it.
+    setTimeoutId(newTimeoutId);
+  }
+
+  const viewDocumentByType = (currentDocument?: Document) => {
+    switch (currentDocument?.file_type) {
+      case "PDF":
+        return (
+          <PdfViewer
+            file={currentDocument.url || ""}
+            pageNumber={Number(router?.query?.pageNumber || 1)}
+            id={currentDocument.id}
+          />
+        );
+      case "URL":
+        return (
+          <a className="color-blue" href={currentDocument.content}>
+            {currentDocument.content}
+          </a>
+        );
+      default:
+        return (
+          <div className="editor-container relative">
+            {/* Adding Disabled Overlay */}
+            <div
+              className={
+                !props.loadingAutoSave ? "hidden"
+                : "flex justify-center items-center absolute top-0 left-0 w-full h-full bg-gray-900 opacity-70 cursor-not-allowed z-1"
+              }
+            >
+              <Loader className="invert" w={40} h={40} />
+            </div>
+
+            {/* Text Editor */}
+            <ReactQuill
+              forwardedRef={el => quillRef.current = el}
+              bounds=".quill"
+              theme="snow"
+              value={props.value}
+              onChange={handleChange}
+              className="quill-disabled"
+            />
+          </div>
+        );
+    }
+  };
+  return (
+    <div>
+      {/* VIEW DOCUMENT CONTAINER */}
+      {viewDocumentByType(props.currentDocument)}
+
+      {/* DELETE CONTAINER */}
+      <div className="flex justify-between items-center">
+        {props.confirmDelete ? (
+          <div className="">
+            <span className="text-red-600">
+              Are you sure you want to delete?
+            </span>
+            <button
+              className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal
+              text-white`}
+              onClick={props.onDeleteDocument}
+            >
+              <span className="flex items-center">
+                {props.loading ? (
+                  <>
+                    <Loader className="mr-2" /> Processing...
+                  </>
+                ) : (
+                  "Confirm Delete"
+                )}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <button
+            className="bg-red-200 hover:bg-red-500 text-white mt-2 float-left inline-block rounded px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal"
+            onClick={props.onDeleteDocument}
+          >
+            Delete
+          </button>
+        )}
+
+        {props.currentDocument && props.loadingAutoSave && (
+          <span className="flex items-center">
+            <Loader className="mr-2" /> Saving...
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NewDocumentContainer(props: {
+  createDocument: any;
+  setDocuments: any;
+  value: string;
+  setValue: any;
+  loading: boolean;
+  userDocumentLimitReached: boolean;
+}) {
+  const [url, setUrl] = useState("");
+
+  if (props.userDocumentLimitReached) {
+    return (
+      <div>
+        <div className="flex flex-col items-center">
+          <span className="text-red-600">
+            You have exceeded the number of documents you can create. Please
+            upgrade your account to create more documents.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function handleUrlSubmit(_: React.ChangeEvent<HTMLButtonElement>) {
+    props.createDocument(url);
+    setUrl("");
+  }
+
+  return (
+    <div>
+      {/* TEXT EDITOR */}
+      <div>
+        <ReactQuill
+          bounds=".quill"
+          theme="snow"
+          value={props.value}
+          onChange={props.setValue}
+        />
+        <SaveButton loading={props.loading} saveAction={props.createDocument} />
+      </div>
+
+      <hr className="h-px my-8 bg-gray-200 border-0 dark:bg-gray-700"></hr>
+
+      {/* URL INPUT */}
+      <div className="mt-8">
+        <label className="block text-bold text-center mb-2">
+          Enter a URL to generate a document
+        </label>
+        <input
+          type="text"
+          placeholder="Enter URL Here..."
+          className="p-2 w-full grow border-2 border-[#738290]"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button onClick={handleUrlSubmit} className="mt-4">
+          URL Save
+        </Button>
+      </div>
+
+      <hr className="h-px my-8 bg-gray-200 border-0 dark:bg-gray-700"></hr>
+
+      {/* PDF UPLOAD */}
+      <label className="block text-bold text-center mb-2">
+        Upload a PDF file
+      </label>
+      <div className="flex justify-center">
+        <UploadPDF setDocument={props.setDocuments} />
+      </div>
+    </div>
+  );
+}
 
 const Documents = () => {
   const router = useRouter();
-
-  const fileInput = useRef();
+  const session = useSession();
+  // const controllerRef = useRef<AbortController | null>();
 
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [documents, setDocuments] = useState<Array<Documents>>([]);
-  const [selectedDocument, setSelectedDocument] = useState<Documents>();
+  const [documents, setDocuments] = useState<Array<Document>>([]);
+  const [currentDocument, setCurrentDocument] = useState<Document>();
   const [value, setValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [selectedPDF, setSelectedPDF] = useState<File | null>();
+  const [loadingAutoSave, setLoadingAutoSave] = useState(false);
+  const [user, setUser] = useState<{ [x: string]: any } | null>();
 
+  // FIXME: why is this in useState?
+  const [supabaseClient] = useState(() => createBrowserSupabaseClient());
+
+  const userIsUpgraded = user?.upgraded;
+  const userDocumentLimitReached =
+    !userIsUpgraded && documents.length >= FREE_ACCOUNT_MAX_DOCUMENTS;
+
+  // Reroute anonymous users to "/"
   useEffect(() => {
-    axios.get("/api/document").then(({ data }) => {
-      setDocuments(data);
-    }).catch(console.error)
+    const checkSession = async () => {
+      try {
+        // Note: Must be awaited because useSession can be null on first render
+        const { data, error } = await supabaseClient.auth.getSession();
+        const { session } = data;
+        if (!session) {
+          router.push("/");
+        }
+        setUser(session?.user);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
+  // Retrieve user documents
+  useEffect(() => {
+    axios
+      .get("/api/document")
+      .then(({ data }) => {
+        setDocuments(data);
+      })
+      .catch(console.error)
       .finally(() => setLoadingDocs(false));
   }, []);
 
+  // Is this how you get the logged in user?
+  // TODO what about this alternative on ln 277?
+  // useEffect(() => {
+  //   supabaseClient
+  //     .from("users")
+  //     .select()
+  //     .then(({ data, error }) => {
+  //       setUser(data?.[0]);
+  //     });
+  // }, [supabaseClient]);
+
   useEffect(() => {
     if (router.query.id && documents.length > 0) {
-      const foundDoc = documents.find(
-        (d) => d.id === parseInt(router?.query?.id)
-      );
+      const routerQueryId = router.query.id;
+      const foundDoc = documents.find((d) => d.id === Number(routerQueryId));
       if (foundDoc) {
         if (foundDoc?.file_type === "PDF") {
-          axios.get("/api/upload-pdf", { params: { path: foundDoc?.file_path } }).then(({ data }) => {
-            setSelectedDocument({ ...foundDoc, url: data });
-          });
+          getPDFSignedUrl(foundDoc.file_path)
+            .then((data) => {
+              setCurrentDocument({ ...foundDoc, url: data });
+            })
+            .catch(console.error);
         } else {
-          setSelectedDocument(foundDoc);
+          setCurrentDocument(foundDoc);
           setValue(foundDoc?.html_string || "");
         }
       }
     }
   }, [router.query, documents]);
 
-  useEffect(() => {
-    window.addEventListener(
-      "mention-hovered",
-      (event) => {
-        console.log("hovered: ", event);
-      },
-      false
-    );
-    window.addEventListener(
-      "mention-clicked",
-      (event) => {
-        console.log("clicked: ", event);
-      },
-      false
-    );
-    return () => {
-      window.removeEventListener("mention-hovered", (event) => {
-        console.log("hovered: ", event);
-      });
-      window.removeEventListener("mention-clicked", (event) => {
-        console.log("clicked: ", event);
-      });
-    };
-  }, []);
+  // Debounce autosave
+  // useEffect(() => {
+  //   let debounce: ReturnType<typeof setTimeout>;
+  //   if (currentDocument?.file_type === "RICH_TEXT_EDITOR") {
+  //     debounce = setTimeout(() => {
+  //       setLoadingAutoSave(true);
+  //       updateDocument(currentDocument, value);
+  //     }, 2000);
+  //   }
+
+  //   return () => {
+  //     clearTimeout(debounce);
+  //   };
+  // }, [value]);
+
+  const getPDFSignedUrl = async (path: string) => {
+    const { data, error } = await supabaseClient.storage
+      .from("pdf_documents")
+      .createSignedUrl(path, 300);
+
+    if (error) throw error;
+    return data.signedUrl;
+  };
 
   const goToDocument = (id: number | null) => {
-    console.log("null id", id)
     if (!id) {
-      console.log("null id")
       router.replace({
-        query: {}
-      })
-      setSelectedDocument(undefined);
+        query: {},
+      });
+      setCurrentDocument(undefined);
       setValue("");
+      setConfirmDelete(false);
       return;
     }
     const document = documents.find((d) => id === d.id);
     if (document) {
+      setConfirmDelete(false);
       router.replace({
-        query: { id }
-      })
+        query: { id },
+      });
+    } else {
+      alert("Document not found");
     }
   };
 
   const onDeleteDocument = async () => {
-    if (confirmDelete && selectedDocument) {
+    if (confirmDelete && currentDocument) {
       setLoading(true);
       try {
         const { data } = await axios.delete(
-          `/api/document/${selectedDocument.id}`
+          `/api/document/${currentDocument.id}`
         );
-        const newDocuments = [...documents];
-        newDocuments.splice(
-          newDocuments.findIndex((d) => d.id === data[0].id),
-          1
-        );
+        const newDocuments = [...documents].filter((d) => d.id !== data[0].id);
         setDocuments(newDocuments);
         setConfirmDelete(false);
-        setSelectedDocument(undefined);
+        setCurrentDocument(undefined);
         setValue("");
       } catch (error) {
         console.error(error);
@@ -140,28 +458,48 @@ const Documents = () => {
     }
   };
 
-  const onAddDocument = async () => {
-    setLoading(true);
-
+  const updateDocument = async (currentDocument: Document, value: string) => {
     try {
-      if (selectedDocument) {
-        const { data } = await axios.put(
-          `/api/document/${selectedDocument.id}`,
-          {
-            value,
-          }
-        );
+      setLoading(true);
+      const { data } = await axios.put(`/api/document/${currentDocument.id}`, {
+        value,
+      });
 
-        const newDocuments = [...documents];
-        newDocuments.splice(
-          newDocuments.findIndex((d) => d.id === data[0].id),
-          1,
-          data[0]
-        );
-        setDocuments(newDocuments);
+      // Replace updated document in documents list
+      const newDocuments = [...documents];
+      newDocuments.splice(
+        newDocuments.findIndex((d) => d.id === data[0].id),
+        1,
+        data[0]
+      );
+      setDocuments(newDocuments);
+      setLoadingAutoSave(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setValue("");
-        setSelectedDocument(undefined);
+  const createDocument = async (url?: string) => {
+    // If creating a new document, check if user is upgraded, and document length is not too high
+    if (
+      !currentDocument &&
+      !userIsUpgraded &&
+      documents.length >= FREE_ACCOUNT_MAX_DOCUMENTS
+    ) {
+      alert(
+        `You already exceeded allowed ${FREE_ACCOUNT_MAX_DOCUMENTS} documents for free tier.`
+      );
+      return;
+    }
+    try {
+      if (url) {
+        const { data } = await axios.post("/api/document", {
+          isUrl: true,
+          value: url,
+        });
+        setDocuments([...documents, data[0]]);
       } else {
         const { data } = await axios.post("/api/document", { value });
         setDocuments([...documents, data[0]]);
@@ -174,214 +512,50 @@ const Documents = () => {
     }
   };
 
-  const mentionModule = {
-    allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
-    mentionDenotationChars: ["@", "#"],
-    source: useCallback(
-      (
-        searchTerm: string,
-        renderItem: (
-          arg0: { id: number; value: string }[] | undefined,
-          arg1: any
-        ) => void,
-        mentionChar: string
-      ) => {
-        let values;
-
-        if (mentionChar === "@") {
-          values = atValues;
-        } else if (mentionChar === "#") {
-          values = hashValues;
-        }
-
-        if (searchTerm.length === 0) {
-          renderItem(values, searchTerm);
-        } else if (values) {
-          const matches = [];
-          for (let i = 0; i < values.length; i += 1)
-            if (values[i].value.toLowerCase().indexOf(searchTerm.toLowerCase()))
-              matches.push(values[i]);
-          renderItem(matches, searchTerm);
-        }
-      },
-      []
-    ),
-  };
-
-  const onUploadPDF = async () => {
-    setUploading(true)
-    let formData = new FormData();
-    formData.append("file", selectedPDF);
-
-    try {
-      const config: AxiosRequestConfig = {
-        headers: { 'content-type': `multipart/form-data` },
-        onUploadProgress: (event) => {
-          console.log(`Current progress:`, Math.round((event.loaded * 100) / (event?.total || 0)));
-        },
-      };
-
-      const { data } = await axios.post("/api/upload-pdf", formData, config)
-      setSelectedPDF(undefined);
-      setDocuments([...documents, data[0]]);
-      fileInput.current.value = "";
-    } catch (err) {
-      console.log(err)
-    } finally {
-      setUploading(false);
-    }
-  }
-
   return (
-    <div className="m-8">
+    <div>
+      {/* HEADER */}
       <Header />
 
+      {/* MAIN */}
       <div className="flex flex-1 items-stretch">
-        <div className="w-120 border-r-2 border-slate-400 p-4">
-          <button
-            className={`${!selectedPDF && "cursor-not-allowed"} bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded whitespace-nowrap cursor-pointer`}
-            onClick={() => goToDocument(null)}
-          >
-            {`Create New Document`}
-          </button>
-          <ul className="mt-3">
-            <li
-              className={`border-l-2 ml-2 my-1 hover:border-cyan-300 hover:text-cyan-300 ${!selectedDocument?.id && "border-cyan-500 text-cyan-500"
-                }`}
-            ></li>
-            {loadingDocs ?
-              <div className="flex flex-col items-center">
-                <Loader className="fill-white" /> Loading Documents
-              </div>
-
-              :
-              documents.map((d) => {
-                let content_lines = d.content.split("\n");
-                let title = content_lines[0];
-                return (
-                  <li
-                    key={d.id}
-                    className={`border-l-2 pl-2 py-1 hover:border-cyan-300 hover:text-cyan-300 ${selectedDocument?.id === d.id &&
-                      "border-cyan-500 text-cyan-500"
-                      }`}
-                  >
-                    <a
-                      onClick={() => goToDocument(d.id)}
-                      className="whitespace-normal cursor-pointer"
-                    >
-                      {title}
-                    </a>
-                  </li>
-                );
-              })}
-          </ul>
+        {/* LEFT PANE */}
+        <div className="grow-0 shrink-0 basis-1/4 p-4">
+          <LeftPane
+            currentDocument={currentDocument}
+            loadingDocs={loadingDocs}
+            documents={documents}
+            goToDocument={goToDocument}
+          />
         </div>
-        <div className="p-4 w-full">
-          {
-            selectedDocument?.file_type === "PDF" ?
-              <PdfViewer
-                file={selectedDocument.url || ""}
-                pageNumber={parseInt(router?.query?.pageNumber || 1)}
-                id={selectedDocument.id}
-              />
-              :
-              <>
-                {
-                  !selectedDocument && (
-                    <div className="text-center">
-                      <label className="block mb-4 text-bold">Upload PDF</label>
-                      <div className='mb-4 flex flex-row justify-center'>
-                        <input ref={fileInput} onChange={(e) => setSelectedPDF(e?.target?.files?.[0])} accept='application/pdf' type='file' />
-                        <button
-                          disabled={!selectedPDF || uploading}
-                          className={`${(!selectedPDF || uploading) && "cursor-not-allowed"} ml-1 block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white`}
-                          onClick={onUploadPDF}
-                        >
-                          <span className="flex items-center">
-                            {
-                              uploading ? <>
-                                <Loader className="mr-2" /> Uploading...
-                              </>
-                                : "Upload PDF"
-                            }
-                          </span>
-                        </button>
-                      </div>
-                      <span className="block text-bold text-xl mb-4">-- OR --</span>
-                      <label className="block mb-4 text-bold text-center">Create Your Own Document</label>
-                    </div>
-                  )
-                }
-                <ReactQuill
-                  bounds=".quill"
-                  theme="snow"
-                  value={value}
-                  onChange={setValue}
-                  modules={{
-                    mention: mentionModule,
-                  }}
-                />
-              </>
-          }
-
-          <div>
-            {selectedDocument &&
-              (confirmDelete ? (
-                <div className="float-left block">
-                  <span className="text-red-600">
-                    {" "}
-                    Are you sure you want to delete?{" "}
-                  </span>
-                  <button
-                    className={`mt-2 block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white"
-                      }`}
-                    onClick={onDeleteDocument}
-                  >
-                    <span className="flex items-center">
-                      {loading ? (
-                        <>
-                          <Loader className="mr-2" /> Processing...
-                        </>
-                      ) : (
-                        "Confirm Delete"
-                      )}
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <button
-                  className="mt-2 float-left inline-block rounded bg-red-500 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white"
-                  onClick={onDeleteDocument}
-                >
-                  Delete
-                </button>
-              ))}
-
-            {
-              selectedDocument?.file_type !== "PDF" && (
-                <button
-                  className={`mt-2 float-right inline-block rounded bg-slate-600 px-6 pb-2 pt-2.5 text-xs font-medium uppercase leading-normal text-white ${loading && "cursor-not-allowed"
-                    }`}
-                  disabled={loading}
-                  onClick={onAddDocument}
-                >
-                  <span className="flex items-center">
-                    {loading ? (
-                      <>
-                        <Loader className="mr-2" /> Processing...
-                      </>
-                    ) : (
-                      "Submit"
-                    )}
-                  </span>
-                </button>
-              )
-            }
-          </div>
+        {/* RIGHT PANE */}
+        <div className="p-4 grow-0 shrink-0 basis-3/4 ">
+          {currentDocument ? (
+            <ViewDocumentContainer
+              confirmDelete={confirmDelete}
+              loading={loading}
+              loadingAutoSave={loadingAutoSave}
+              setLoadingAutoSave={setLoadingAutoSave}
+              onDeleteDocument={onDeleteDocument}
+              currentDocument={currentDocument}
+              setValue={setValue}
+              value={value}
+              updateDocument={updateDocument}
+            />
+          ) : (
+            <NewDocumentContainer
+              createDocument={createDocument}
+              setDocuments={setDocuments}
+              loading={loading}
+              value={value}
+              setValue={setValue}
+              userDocumentLimitReached={userDocumentLimitReached}
+            />
+          )}
         </div>
       </div>
-    </div >
-  )
-}
+    </div>
+  );
+};
 
-export default Documents
+export default Documents;

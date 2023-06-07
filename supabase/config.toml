@@ -65,6 +65,12 @@ enable_confirmations = false
 enabled = false
 client_id = ""
 secret = ""
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_SECRET)"
+
 # Overrides the default auth redirectUrl.
 redirect_uri = ""
 # Overrides the default auth provider URL. Used to support self-hosted gitlab, single-tenant Azure,

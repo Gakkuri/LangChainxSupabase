@@ -13,6 +13,7 @@
 html,
 body {
   height: 100%;
+  background-color: #FFFCF7;
 }
 
 * {
@@ -28,10 +29,19 @@ a {
 
 .quill .ql-editor {
   min-height: 18em;
+  background-color: white;
+  font-size: 1.15rem;
 }
 
+.editor-container .ql-editor ol, .editor-container .ql-editor ul {
+  padding-left: 0px
+}
+
+
+
+/*
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
-}
+} */
