@@ -140,13 +140,7 @@ npx supabase login
 Then, link your project:
 
 ```bash
-npx supabase link --project-ref <project-ref>
-```
-
-Then, deploy the functions:
-
-```bash
-yarn supabase:deploy
+npx env-cmd -f ./supabase/.env npx supabase link --project-ref <project-ref>
 ```
 
 Optionally, if you're also using the Supabase Vector Store from LangChain, you'll need to push the schema to the database:
