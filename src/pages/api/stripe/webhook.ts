@@ -1,13 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-// import { buffer } from "micro";
+import { buffer } from "micro";
 import { createClient } from "@supabase/supabase-js";
-// import Stripe from "stripe";
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+import Stripe from "stripe";
+// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  //   apiVersion: "2022-11-15",
-  // });
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: null,
+  });
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (req.method === "POST") {
@@ -115,21 +115,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-const buffer = (req: NextApiRequest) => {
-  return new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = [];
+// const buffer = (req: NextApiRequest) => {
+//   return new Promise<Buffer>((resolve, reject) => {
+//     const chunks: Buffer[] = [];
 
-    req.on("data", (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
+//     req.on("data", (chunk: Buffer) => {
+//       chunks.push(chunk);
+//     });
 
-    req.on("end", () => {
-      resolve(Buffer.concat(chunks));
-    });
+//     req.on("end", () => {
+//       resolve(Buffer.concat(chunks));
+//     });
 
-    req.on("error", reject);
-  });
-};
+//     req.on("error", reject);
+//   });
+// };
 
 export const config = {
   api: {
