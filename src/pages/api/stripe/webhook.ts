@@ -1,19 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buffer } from "micro";
 import { createClient } from "@supabase/supabase-js";
-import Stripe from "stripe";
-// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-    apiVersion: "2022-11-15",
-  });
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
   if (req.method === "POST") {
+    const buf = await buffer(req);
     const sig = req.headers["stripe-signature"];
 
-    let event: Stripe.Event;
+    let event;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -21,21 +18,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     );
 
     try {
-      const buf = await buffer(req);
-      console.log(sig);
-      console.log(webhookSecret);
-      console.log(buf);
       event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
-      console.log(event);
     } catch (err) {
       if (err instanceof Error) {
-        res.status(400).send(`Webhook Error: ${err.message}`);
+        res.status(400).send(`Webhook Error: ${err.message}, sig: ${sig}`);
         return;
       }
     }
-
-    //Successfully constructed event
-    console.log("✅ Success Signature:", event.id);
 
     let subscription;
     let status;
@@ -109,29 +98,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       // console.log(`Unhandled event type ${event.type}.`);
     }
 
-    // Return a response to acknowledge receipt of the event
     res.json({ received: true });
   } else {
     res.setHeader("Allow", "POST");
     res.status(405).end("Method Not Allowed");
   }
 };
-
-// const buffer = (req: NextApiRequest) => {
-//   return new Promise<Buffer>((resolve, reject) => {
-//     const chunks: Buffer[] = [];
-
-//     req.on("data", (chunk: Buffer) => {
-//       chunks.push(chunk);
-//     });
-
-//     req.on("end", () => {
-//       resolve(Buffer.concat(chunks));
-//     });
-
-//     req.on("error", reject);
-//   });
-// };
 
 export const config = {
   api: {
