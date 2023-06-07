@@ -5,15 +5,15 @@ import Stripe from "stripe";
 // const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: null,
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+    apiVersion: "2022-11-15",
   });
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (req.method === "POST") {
     const sig = req.headers["stripe-signature"];
 
-    let event;
+    let event: Stripe.Event;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -23,6 +23,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
       const buf = await buffer(req);
       console.log(sig);
+      console.log(webhookSecret);
+      console.log(buf);
       event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
       console.log(event);
     } catch (err) {
