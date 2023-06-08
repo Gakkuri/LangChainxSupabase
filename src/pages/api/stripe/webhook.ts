@@ -1,14 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { buffer } from "micro";
 import { createClient } from "@supabase/supabase-js";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-import { headers } from "next/headers";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-const handler = async (req: Request, res: NextApiResponse) => {
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
-    const buf = await req.text();
-    const sig = headers().get("Stripe-Signature") as string;
+    const buf = await buffer(req);
+    const sig = req.headers["stripe-signature"];
 
     let event;
 
@@ -18,7 +18,11 @@ const handler = async (req: Request, res: NextApiResponse) => {
     );
 
     try {
-      event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(
+        buf.toString(),
+        sig,
+        webhookSecret
+      );
     } catch (err) {
       if (err instanceof Error) {
         res.status(400).send(`Webhook Error: ${err.message}, sig: ${sig}`);
@@ -39,7 +43,6 @@ const handler = async (req: Request, res: NextApiResponse) => {
         // handleSubscriptionTrialEnding(subscription);
         break;
       case "customer.subscription.deleted":
-      case "charge.refunded":
         subscription = event.data.object;
         status = subscription.status;
 
@@ -59,7 +62,6 @@ const handler = async (req: Request, res: NextApiResponse) => {
         // Then define and call a method to handle the subscription deleted.
         // handleSubscriptionDeleted(subscriptionDeleted);
         break;
-
       case "customer.subscription.created":
         subscription = event.data.object;
         status = subscription.status;
