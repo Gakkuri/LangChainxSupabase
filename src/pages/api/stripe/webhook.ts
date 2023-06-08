@@ -1,16 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { buffer } from "micro";
-import Cors from "micro-cors";
+// import { buffer } from "micro";
+// import Cors from "micro-cors";
 import { createClient } from "@supabase/supabase-js";
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-const cors = Cors({
-  allowMethods: ["POST", "HEAD"],
-});
+// const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+import Stripe from "stripe";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+    apiVersion: "2022-11-15",
+  });
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
   if (req.method === "POST") {
     const buf = await buffer(req);
     const sig = req.headers["stripe-signature"];
@@ -23,11 +24,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     );
 
     try {
-      event = stripe.webhooks.constructEvent(
-        buf.toString(),
-        sig,
-        webhookSecret
-      );
+      event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
     } catch (err) {
       if (err instanceof Error) {
         console.log(webhookSecret);
@@ -117,10 +114,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
+const buffer = (req: NextApiRequest) => {
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+
+    req.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks));
+    });
+
+    req.on("error", reject);
+  });
+};
+
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-export default cors(handler);
+export default handler;
