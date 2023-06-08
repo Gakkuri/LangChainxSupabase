@@ -1,14 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { buffer } from "micro";
 import { createClient } from "@supabase/supabase-js";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+import { headers } from "next/headers";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+const handler = async (req: Request, res: NextApiResponse) => {
   if (req.method === "POST") {
-    const buf = await buffer(req);
-    const sig = req.headers["stripe-signature"];
+    const buf = await req.text();
+    const sig = headers().get("Stripe-Signature") as string;
 
     let event;
 
