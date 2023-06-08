@@ -1,9 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { buffer } from "micro";
+import Cors from "micro-cors";
 import { createClient } from "@supabase/supabase-js";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+const cors = Cors({
+  allowMethods: ["POST", "HEAD"],
+});
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
@@ -25,7 +30,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       );
     } catch (err) {
       if (err instanceof Error) {
-        res.status(400).send(`Webhook Error: ${err.message}, sig: ${sig}`);
+        console.log(webhookSecret);
+        res
+          .status(400)
+          .send(`Webhook Error: ${err.message}, Sign: ${sig}, Buffer: ${buf}`);
         return;
       }
     }
@@ -115,4 +123,4 @@ export const config = {
   },
 };
 
-export default handler;
+export default cors(handler);
