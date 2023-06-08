@@ -39,6 +39,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         // handleSubscriptionTrialEnding(subscription);
         break;
       case "customer.subscription.deleted":
+      case "charge.refunded":
         subscription = event.data.object;
         status = subscription.status;
 
@@ -58,6 +59,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         // Then define and call a method to handle the subscription deleted.
         // handleSubscriptionDeleted(subscriptionDeleted);
         break;
+
       case "customer.subscription.created":
         subscription = event.data.object;
         status = subscription.status;
