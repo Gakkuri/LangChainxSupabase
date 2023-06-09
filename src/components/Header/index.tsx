@@ -20,15 +20,12 @@ const Header = (props: Props) => {
   const [supabaseClient] = useState(() => createBrowserSupabaseClient());
 
   useEffect(() => {
-    const fetchUsers = () => {
-      supabaseClient
-        .from("users")
-        .select()
-        .then(({ data, error }) => {
-          setUser(data?.[0]);
-        });
-    };
-    fetchUsers();
+    supabaseClient
+      .from("users")
+      .select()
+      .then(({ data, error }) => {
+        setUser(data?.[0]);
+      });
   }, []);
 
   const onLogout = async () => {
