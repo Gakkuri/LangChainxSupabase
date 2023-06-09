@@ -23,6 +23,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ""
     );
 
+    console.log(`Sign: ${sig},\nBuffer: ${buf}`);
+
     try {
       event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
     } catch (err) {
