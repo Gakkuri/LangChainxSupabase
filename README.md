@@ -152,3 +152,5 @@ supabase db push
 ## How to debug vercel
 
 Q: Where are the logs?
+
+test
